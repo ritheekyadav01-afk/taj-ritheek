@@ -1,0 +1,13 @@
+Test run finished 2026-10-08T17:21:02
+
+Rows created by the tests (all removed afterwards):
+  payment              2 row(s) with payment_id > 1
+  invoice              1 row(s) with invoice_id > 1
+  service_charge       1 row(s) with charge_id > 3
+  service_request      2 row(s) with service_request_id > 3
+  housekeeping_task    1 row(s) with task_id > 3
+  stay                 1 row(s) with stay_id > 3
+  reservation          2 row(s) with reservation_id > 6
+  guest                1 row(s) with guest_id > 5
+
+Restore: done. Row ids, statuses and AUTO_INCREMENT counters are back to the starting values.

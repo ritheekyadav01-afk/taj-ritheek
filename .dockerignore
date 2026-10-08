@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/__pycache__
+.git
+.github
+.env
+**/.env
+app
+app_web
+db
+docs
+screenshots
+*.pdf
+app_site/tests

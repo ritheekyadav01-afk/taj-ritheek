@@ -1,0 +1,14 @@
+# secrets: never commit the database password
+.env
+app/.env
+app_web/.env
+app_site/.env
+
+# build and cache output
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+app_site/tests/shots/

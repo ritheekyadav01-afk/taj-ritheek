@@ -1,0 +1,175 @@
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: 
+-- Create reservation --
+ guest_id | full_name    | email                   
+ --------------------------------------------------
+ 1        | Arjun Mehta  | arjun.mehta@example.com 
+ 2        | Priya Sharma | priya.sharma@example.com
+ 3        | Karthik Iyer | karthik.iyer@example.com
+ 4        | Sneha Reddy  | sneha.reddy@example.com 
+ 5        | Farhan Ali   | farhan.ali@example.com  
+Guest ID (or 0 to add a new guest):  room_id | room_number | type_id | status     
+ ---------------------------------------------
+ 1       | 101         | 1       | available  
+ 2       | 102         | 1       | available  
+ 3       | 103         | 1       | occupied   
+ 4       | 201         | 2       | available  
+ 5       | 202         | 2       | cleaning   
+ 6       | 301         | 3       | available  
+ 7       | 302         | 3       | maintenance
+Room ID:  rate_plan_id | plan_name           | nightly_rate
+ -------------------------------------------------
+ 1            | Standard - Flexible | 2500.00     
+ 2            | Standard - Saver    | 2100.00     
+Rate plan ID: Planned check-in (YYYY-MM-DD): Planned check-out (YYYY-MM-DD): Adults: Children: 
+  [Rejected] Room is already booked for an overlapping date range.
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: 
+-- Create reservation --
+ guest_id | full_name    | email                   
+ --------------------------------------------------
+ 1        | Arjun Mehta  | arjun.mehta@example.com 
+ 2        | Priya Sharma | priya.sharma@example.com
+ 3        | Karthik Iyer | karthik.iyer@example.com
+ 4        | Sneha Reddy  | sneha.reddy@example.com 
+ 5        | Farhan Ali   | farhan.ali@example.com  
+Guest ID (or 0 to add a new guest):  room_id | room_number | type_id | status     
+ ---------------------------------------------
+ 1       | 101         | 1       | available  
+ 2       | 102         | 1       | available  
+ 3       | 103         | 1       | occupied   
+ 4       | 201         | 2       | available  
+ 5       | 202         | 2       | cleaning   
+ 6       | 301         | 3       | available  
+ 7       | 302         | 3       | maintenance
+Room ID:  rate_plan_id | plan_name           | nightly_rate
+ -------------------------------------------------
+ 1            | Standard - Flexible | 2500.00     
+ 2            | Standard - Saver    | 2100.00     
+Rate plan ID: Planned check-in (YYYY-MM-DD):   Invalid date format, try again (e.g. 2026-10-15).
+Planned check-in (YYYY-MM-DD): Planned check-out (YYYY-MM-DD): Adults: Children: 
+  [Rejected] Occupant count exceeds room type capacity.
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: 
+-- Record a payment --
+  (no rows)
+Invoice ID: Payment amount: Method (cash/card/upi/netbanking): 
+  [Rejected] Payment would exceed the invoice total.
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: 
+-- Check out a guest (generates invoice) --
+ stay_id | full_name   | room_number | actual_check_in    
+ ---------------------------------------------------------
+ 1       | Arjun Mehta | 103         | 2026-09-20 14:05:00
+Stay ID to check out:   Stay not found or already checked out.
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: 
+-- Check in a guest --
+ reservation_id | guest_id | room_id | planned_check_in | planned_check_out
+ --------------------------------------------------------------------------
+ 2              | 2        | 4       | 2026-10-10       | 2026-10-13       
+Reservation ID to check in:   Only 'booked' reservations can be checked in (this one is 'cancelled').
+
+==================================================
+ Hotel Reservation & Guest Services Management
+==================================================
+ 1. Search room availability
+ 2. Create reservation
+ 3. Check in a guest
+ 4. Check out a guest (generates invoice)
+ 5. Log a service request / charge
+ 6. Assign / update housekeeping task
+ 7. Record a payment
+ 8. View an invoice
+ 9. Reports
+ 10. Cancel a reservation
+ 11. Manage guests (update / delete)
+ 0. Exit
+--------------------------------------------------
+
+Choice: Goodbye.

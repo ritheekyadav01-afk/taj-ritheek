@@ -1,0 +1,26 @@
+# Render Blueprint: one web service running the Dockerfile (site + API).
+# The DB_* values and STAFF_PASSWORD are entered in the Render dashboard (sync: false),
+# so no secret ever lives in this repository.
+services:
+  - type: web
+    name: taj-ritheek
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "1"
+      - key: STAFF_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true

@@ -3,28 +3,20 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from '@phosphor-icons/react'
 import { EASE } from '../motion'
+import { lockScroll, unlockScroll } from '../smooth'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /**
- * Modal / drawer with a double-rule border. Esc closes, Tab is trapped,
- * focus returns to whatever opened it. variant="drawer" slides in from the right.
+ * Modal or side sheet inside a fine double rule. Esc closes, Tab is trapped,
+ * focus returns to whatever opened it, and the page stops scrolling underneath.
  */
-export default function Modal({ open, onClose, title, children, size = 'md', variant = 'center', footer, labelledBy, tone }) {
+export default function Modal({ open, onClose, title, children, size = 'md', variant = 'center', footer, labelledBy }) {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <Layer
-          key="layer"
-          onClose={onClose}
-          title={title}
-          size={size}
-          variant={variant}
-          footer={footer}
-          labelledBy={labelledBy}
-          tone={tone}
-        >
+        <Layer key="layer" onClose={onClose} title={title} size={size} variant={variant} footer={footer} labelledBy={labelledBy}>
           {children}
         </Layer>
       )}
@@ -33,23 +25,22 @@ export default function Modal({ open, onClose, title, children, size = 'md', var
   )
 }
 
-const WIDTH = { sm: 440, md: 600, lg: 820, xl: 1040 }
+const WIDTH = { sm: 460, md: 620, lg: 840, xl: 1080 }
 
-function Layer({ onClose, title, children, size, variant, footer, labelledBy, tone }) {
+function Layer({ onClose, title, children, size, variant, footer, labelledBy }) {
   const panel = useRef(null)
   const opener = useRef(document.activeElement)
 
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    lockScroll()
     const t = setTimeout(() => {
       const first = panel.current?.querySelector('[data-autofocus]') || panel.current
       first?.focus({ preventScroll: true })
-    }, 60)
+    }, 80)
     const returnTo = opener.current
     return () => {
       clearTimeout(t)
-      document.body.style.overflow = prev
+      unlockScroll()
       returnTo?.focus?.({ preventScroll: true })
     }
   }, [])
@@ -78,56 +69,50 @@ function Layer({ onClose, title, children, size, variant, footer, labelledBy, to
   const headId = labelledBy || 'modal-title'
   return (
     <motion.div
-      className="fixed inset-0 z-[70] flex"
-      style={{ justifyContent: drawer ? 'flex-end' : 'center', alignItems: drawer ? 'stretch' : 'center', padding: drawer ? 0 : 12 }}
+      className="fixed inset-0 z-[80] flex"
+      style={{ justifyContent: drawer ? 'flex-end' : 'center', alignItems: drawer ? 'stretch' : 'center', padding: drawer ? 0 : 14 }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.45, ease: EASE }}
+      transition={{ duration: 0.5, ease: EASE }}
       onKeyDown={onKeyDown}
     >
-      <div
-        className="absolute inset-0"
-        style={{ background: 'color-mix(in srgb, #173528 62%, transparent)' }}
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 backdrop-blur-[3px]" style={{ background: 'var(--scrim)' }} onClick={onClose} aria-hidden="true" />
       <motion.div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? headId : undefined}
         tabIndex={-1}
-        className="double-rule bg-marble relative flex flex-col outline-none"
+        data-lenis-prevent
+        className="double-rule bg-surface relative flex flex-col outline-none"
         style={{
-          width: drawer ? `min(${WIDTH[size] || 560}px, 100vw)` : `min(${WIDTH[size]}px, 100%)`,
+          width: drawer ? `min(${WIDTH[size] || 620}px, 100vw)` : `min(${WIDTH[size]}px, 100%)`,
           maxHeight: drawer ? '100dvh' : '92dvh',
           height: drawer ? '100dvh' : undefined,
-          boxShadow: '0 30px 60px -30px color-mix(in srgb, #231A16 60%, transparent)',
+          boxShadow: 'var(--shadow)',
         }}
-        initial={drawer ? { x: 60, opacity: 0 } : { y: 26, opacity: 0 }}
-        animate={drawer ? { x: 0, opacity: 1 } : { y: 0, opacity: 1 }}
-        exit={drawer ? { x: 40, opacity: 0 } : { y: 14, opacity: 0 }}
-        transition={{ duration: 0.6, ease: EASE }}
+        initial={drawer ? { x: 80, opacity: 0 } : { y: 28, opacity: 0, scale: 0.985 }}
+        animate={drawer ? { x: 0, opacity: 1 } : { y: 0, opacity: 1, scale: 1 }}
+        exit={drawer ? { x: 50, opacity: 0 } : { y: 14, opacity: 0, scale: 0.99 }}
+        transition={{ duration: 0.75, ease: EASE }}
       >
-        <div className="flex items-start justify-between gap-4 px-7 pt-7 pb-4">
+        <div className="flex items-start justify-between gap-4 px-8 pt-8 pb-5">
           {title ? (
-            <h2
-              id={headId}
-              className="font-display text-[30px] font-medium m-0"
-              style={{ color: tone === 'claret' ? 'var(--color-claret)' : 'var(--color-claret)' }}
-            >
+            <h2 id={headId} className="display text-[32px] m-0 text-strong">
               {title}
             </h2>
           ) : (
             <span />
           )}
-          <button className="btn btn-quiet -mr-3 -mt-1" onClick={onClose} aria-label="Close">
-            <X size={22} weight="light" />
+          <button className="btn btn-quiet btn-icon -mr-3 -mt-1" onClick={onClose} aria-label="Close">
+            <X size={20} weight="light" />
           </button>
         </div>
-        <div className="px-7 pb-7 overflow-y-auto thin-scroll flex-1 min-h-0">{children}</div>
-        {footer && <div className="px-7 py-5 rule-t flex flex-wrap justify-end gap-3">{footer}</div>}
+        <div className="px-8 pb-8 overflow-y-auto thin-scroll flex-1 min-h-0" data-lenis-prevent>
+          {children}
+        </div>
+        {footer && <div className="px-8 py-5 border-t border-line flex flex-wrap justify-end gap-3">{footer}</div>}
       </motion.div>
     </motion.div>
   )

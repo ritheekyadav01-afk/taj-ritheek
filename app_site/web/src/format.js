@@ -1,10 +1,9 @@
-// format.js: rupees with Indian digit grouping, and local-date helpers.
-const NBSP = ' '
+// format.js: rupees with Indian digit grouping (the rupee sign is drawn by the Rupee fonts), and dates.
 const money = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const whole = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
 
-export const inr = (n) => `Rs${NBSP}${money.format(Number(n) || 0)}`
-export const inrWhole = (n) => `Rs${NBSP}${whole.format(Math.round(Number(n) || 0))}`
+export const inr = (n) => `\u20B9${money.format(Number(n) || 0)}`
+export const inrWhole = (n) => `\u20B9${whole.format(Math.round(Number(n) || 0))}`
 export const num = (n) => whole.format(Number(n) || 0)
 
 export function parseDate(s) {

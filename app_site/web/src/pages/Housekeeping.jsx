@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import { AnimatePresence, motion } from 'motion/react'
-import { PageHeader, SectionTitle, SelectInput, TextInput, Skeleton, ErrorNote } from '../components/ui'
+import { PageHeader, SectionTitle, SelectInput, Skeleton, ErrorNote } from '../components/ui'
 import KeyFob from '../components/KeyFob'
 import Modal from '../components/Modal'
 import RuleError from '../components/RuleError'
+import { Reveal } from '../components/motion'
 import { useApi } from '../hooks'
 import { patch, post } from '../api'
 import { useData, useToast } from '../store'
@@ -23,24 +24,25 @@ function CardBody({ t, onMove, overlay }) {
   const next = t.task_status === 'pending' ? ['in_progress', 'Start'] : t.task_status === 'in_progress' ? ['done', 'Finish'] : ['pending', 'Reopen']
   return (
     <div
-      className="bg-marble p-4 flex gap-4 items-start"
-      style={{
-        border: '1px solid var(--color-hairline)',
-        boxShadow: overlay ? '0 24px 32px -18px color-mix(in srgb, #231A16 65%, transparent)' : '0 6px 10px -8px color-mix(in srgb, #231A16 40%, transparent)',
-      }}
+      className="bg-surface p-5 flex gap-4 items-start border border-line"
+      style={{ boxShadow: overlay ? 'var(--shadow)' : 'none', borderColor: overlay ? 'var(--accent)' : undefined }}
     >
-      <KeyFob number={t.room_number} status={t.room_status} size="sm" />
+      <span className="rack p-1.5 shrink-0" style={{ ['--hole']: '#070708' }}>
+        <span className="relative z-[1] block">
+          <KeyFob number={t.room_number} status={t.room_status} size="sm" />
+        </span>
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="m-0 text-[18px] leading-snug">{t.task_type}</p>
-        <p className="m-0 text-[15px] text-muted">Room {t.room_number}</p>
-        <p className="m-0 text-[15px] text-muted">{t.assigned_staff || 'Nobody assigned'}</p>
-        <p className="m-0 mt-1 font-ui text-[13px] text-muted">
+        <p className="m-0 text-[16px] text-strong leading-snug">{t.task_type}</p>
+        <p className="m-0 text-[13.5px] text-muted">Room {t.room_number}</p>
+        <p className="m-0 text-[13.5px] text-muted">{t.assigned_staff || 'Nobody assigned'}</p>
+        <p className="m-0 mt-1.5 text-[12px] text-muted">
           {t.task_status === 'done' && t.completed_at ? `Finished ${stampLabel(t.completed_at)}` : `Set for ${stampLabel(t.scheduled_at)}`}
         </p>
         {!overlay && (
           <button
             type="button"
-            className="btn btn-ghost btn-sm mt-3"
+            className="btn btn-ghost btn-sm mt-4"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => onMove(t, next[0])}
             aria-label={`${next[1]} the task for room ${t.room_number}`}
@@ -59,10 +61,10 @@ function Card({ t, onMove }) {
     <motion.li
       layout="position"
       layoutId={`task-${t.task_id}`}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: isDragging ? 0.35 : 1, y: 0 }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: isDragging ? 0.3 : 1, y: 0 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.6, ease: EASE }}
+      transition={{ duration: 0.75, ease: EASE }}
       ref={setNodeRef}
       className="list-none touch-manipulation"
       style={{ cursor: 'grab' }}
@@ -74,38 +76,40 @@ function Card({ t, onMove }) {
   )
 }
 
-function Column({ col, tasks, onMove, activeId }) {
+function Column({ col, tasks, onMove, i }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id })
   return (
-    <section
+    <Reveal
+      as="section"
+      delay={i * 0.08}
       aria-labelledby={`col-${col.id}`}
-      className="min-w-0 p-4 transition-colors duration-500"
+      className="min-w-0 p-5 border transition-colors duration-500"
       style={{
-        background: isOver ? 'color-mix(in srgb, #E8E3D8 100%, #A9833F 8%)' : 'var(--color-vellum)',
-        outline: isOver ? '1.5px dashed var(--color-brass)' : '1.5px dashed transparent',
-        outlineOffset: -6,
+        background: isOver ? 'color-mix(in srgb, var(--accent) 9%, var(--surface-2))' : 'var(--surface-2)',
+        borderColor: isOver ? 'var(--accent)' : 'transparent',
+        borderStyle: isOver ? 'dashed' : 'solid',
       }}
     >
       <div className="flex items-baseline justify-between mb-1">
-        <h2 id={`col-${col.id}`} className="sc m-0 text-[22px] text-claret">
+        <h2 id={`col-${col.id}`} className="display m-0 text-[30px] text-strong">
           {col.title}
         </h2>
-        <span className="font-ui text-[14px] text-muted num">{tasks.length}</span>
+        <span className="text-[13px] text-muted num">{tasks.length}</span>
       </div>
-      <p className="m-0 mb-4 text-[15px] italic text-muted">{col.note}</p>
-      <ul ref={setNodeRef} className="list-none m-0 p-0 grid gap-3 content-start" style={{ minHeight: 140 }}>
+      <p className="m-0 mb-5 text-[13.5px] text-muted">{col.note}</p>
+      <ul ref={setNodeRef} className="list-none m-0 p-0 grid gap-3 content-start" style={{ minHeight: 150 }}>
         <AnimatePresence initial={false}>
           {tasks.map((t) => (
             <Card key={t.task_id} t={t} onMove={onMove} />
           ))}
         </AnimatePresence>
         {tasks.length === 0 && (
-          <li className="list-none grid place-items-center text-center italic text-muted text-[16px] py-8 px-4" style={{ border: '1px dashed var(--color-muted)' }}>
+          <li className="list-none grid place-items-center text-center text-muted text-[14px] py-9 px-4 border border-dashed border-line-strong">
             {col.id === 'pending' ? 'All clear. New tasks land here.' : col.id === 'in_progress' ? 'Drag a card here to begin.' : 'Finished work collects here.'}
           </li>
         )}
       </ul>
-    </section>
+    </Reveal>
   )
 }
 
@@ -140,7 +144,7 @@ export default function Housekeeping() {
     if (task.task_status === status) return
     const before = tasks
     setMoveErr(null)
-    // optimistic: the card moves at once; finishing also flips the room's tag to available
+    // optimistic: the card moves at once; finishing also turns the room's tag back to available
     setTasks((ts) =>
       ts.map((t) => {
         if (t.task_id === task.task_id) return { ...t, task_status: status, completed_at: status === 'done' ? new Date().toISOString().slice(0, 19) : null }
@@ -187,7 +191,7 @@ export default function Housekeeping() {
 
   return (
     <>
-      <PageHeader title="Housekeeping" subtitle="Drag a card across the board, or use its button. Finishing a cleaning frees the room for sale.">
+      <PageHeader title="The *housekeeping* board" subtitle="Drag a card across the board, or use its button. Finishing a cleaning frees the room for sale.">
         <button className="btn btn-primary" onClick={() => setForm({ room_id: '', task_type: TASK_TYPES[0], staff_id: '' })}>
           New task
         </button>
@@ -196,20 +200,24 @@ export default function Housekeeping() {
       {error && !data && <ErrorNote error={error} />}
 
       {data?.awaiting?.length > 0 && (
-        <section aria-labelledby="await" className="mb-10">
+        <Reveal as="section" aria-labelledby="await" className="mb-12">
           <SectionTitle id="await">Rooms waiting for a task</SectionTitle>
-          <ul className="list-none m-0 p-0 flex flex-wrap gap-x-8 gap-y-3">
+          <ul className="list-none m-0 p-0 flex flex-wrap gap-x-10 gap-y-4">
             {data.awaiting.map((r) => (
-              <li key={r.room_id} className="flex items-center gap-3">
-                <KeyFob number={r.room_number} status="cleaning" size="sm" />
-                <span className="text-[17px]">Room {r.room_number} needs cleaning</span>
+              <li key={r.room_id} className="flex items-center gap-4">
+                <span className="rack p-1.5">
+                  <span className="relative z-[1] block">
+                    <KeyFob number={r.room_number} status="cleaning" size="sm" />
+                  </span>
+                </span>
+                <span className="text-[15px]">Room {r.room_number} needs cleaning</span>
                 <button className="btn btn-ghost btn-sm" onClick={() => setForm({ room_id: String(r.room_id), task_type: TASK_TYPES[0], staff_id: '' })}>
                   Add a task
                 </button>
               </li>
             ))}
           </ul>
-        </section>
+        </Reveal>
       )}
 
       <RuleError error={moveErr} className="mb-6" />
@@ -217,17 +225,17 @@ export default function Housekeeping() {
       {!tasks ? (
         <div className="grid md:grid-cols-3 gap-5">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} style={{ height: 360 }} />
+            <Skeleton key={i} style={{ height: 380 }} />
           ))}
         </div>
       ) : (
         <DndContext sensors={sensors} onDragStart={(e) => setActiveId(String(e.active.id))} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
           <div className="grid md:grid-cols-3 gap-5 items-start">
-            {COLUMNS.map((c) => (
-              <Column key={c.id} col={c} tasks={by[c.id]} onMove={move} activeId={activeId} />
+            {COLUMNS.map((c, i) => (
+              <Column key={c.id} col={c} tasks={by[c.id]} onMove={move} i={i} />
             ))}
           </div>
-          <DragOverlay dropAnimation={{ duration: 450, easing: 'cubic-bezier(0.32,0.72,0,1)' }}>
+          <DragOverlay dropAnimation={{ duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
             {activeTask ? (
               <div style={{ transform: 'rotate(1.5deg)', cursor: 'grabbing' }}>
                 <CardBody t={activeTask} overlay />
@@ -254,7 +262,7 @@ export default function Housekeeping() {
         }
       >
         {form && (
-          <form onSubmit={createTask} className="grid gap-5" noValidate>
+          <form onSubmit={createTask} className="grid gap-6" noValidate>
             <SelectInput label="Room" value={form.room_id} onChange={(e) => setForm({ ...form, room_id: e.target.value, error: null })} data-autofocus>
               <option value="">Choose a room</option>
               {(data?.awaiting || []).map((r) => (

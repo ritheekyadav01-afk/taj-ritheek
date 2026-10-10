@@ -7,7 +7,7 @@ import { EASE } from '../motion'
 // database's own text, unedited.
 const TITLES = {
   overlap: 'This room is already held for those dates',
-  capacity: "More guests than the room can hold",
+  capacity: 'More guests than the room can hold',
   rate_plan: "That rate plan isn't for this room",
   dates: 'Those dates do not work',
   occupants: 'A booking needs at least one adult',
@@ -25,11 +25,13 @@ const TITLES = {
   email: 'Check the email address',
   invalid: 'Check the details',
   not_found: 'Record not found',
-  charge_stay: "The charge belongs to another stay",
-  task_room: "The task belongs to another room",
+  charge_stay: 'The charge belongs to another stay',
+  task_room: 'The task belongs to another room',
 }
 
 let counter = 0
+
+/** A rejection: the red rule draws down the left edge and the database's words fade in beside it. */
 export default function RuleError({ error, className = '' }) {
   const key = useMemo(() => (error ? ++counter : 0), [error])
   return (
@@ -39,46 +41,36 @@ export default function RuleError({ error, className = '' }) {
           key={key}
           role="alert"
           className={className}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.6, ease: EASE }}
-          style={{ overflow: 'hidden' }}
         >
-          <motion.div
-            className="relative flex gap-4 items-start py-4 pr-4 pl-6 my-1"
-            style={{ background: 'color-mix(in srgb, #A32B3F 7%, #F2F0EB)', border: '1px solid color-mix(in srgb, #A32B3F 40%, #F2F0EB)' }}
-            initial={{ x: 0 }}
-            animate={{ x: [0, -4, 3, -2, 0] }}
-            transition={{ duration: 0.7, ease: EASE, delay: 0.25 }}
-          >
+          <div className="relative flex gap-4 items-start py-4 pr-4 pl-6 my-1" style={{ background: 'var(--error-wash)', border: '1px solid var(--error-line)' }}>
             <motion.span
               aria-hidden="true"
-              className="absolute left-0 top-0 bottom-0 w-[3px]"
-              style={{ background: 'var(--color-claret-light)', originY: 0 }}
+              className="absolute left-0 top-0 bottom-0 w-[3px] bg-error"
+              style={{ originY: 0 }}
               initial={{ scaleY: 0 }}
               animate={{ scaleY: 1 }}
-              transition={{ duration: 0.8, ease: EASE }}
+              transition={{ duration: 0.9, ease: EASE }}
             />
-            <motion.span
-              style={{ color: 'var(--color-claret-light)' }}
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
-              className="mt-0.5"
-            >
-              <SealWarning size={28} weight="light" />
-            </motion.span>
+            <SealWarning size={26} weight="light" className="text-error shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="m-0 font-ui text-[15px] font-medium" style={{ color: 'var(--color-claret-light)' }}>
-                {TITLES[error.rule] || 'The desk cannot do that'}
-              </p>
-              <p className="m-0 mt-1 text-[17px] leading-snug">{error.message}</p>
+              <p className="m-0 text-[14.5px] font-medium text-error-text">{TITLES[error.rule] || 'The desk cannot do that'}</p>
+              <motion.p
+                className="m-0 mt-1 text-[15.5px] leading-snug text-text"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, ease: EASE, delay: 0.25 }}
+              >
+                {error.message}
+              </motion.p>
               {error.status === 409 && error.rule !== 'state' && (
-                <p className="m-0 mt-2 font-ui text-[13px] text-muted">Refused by a rule in the database, nothing was saved.</p>
+                <p className="m-0 mt-2 text-[12.5px] text-muted">Refused by a rule in the database. Nothing was saved.</p>
               )}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

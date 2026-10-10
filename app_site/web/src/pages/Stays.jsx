@@ -6,6 +6,7 @@ import KeyFob from '../components/KeyFob'
 import CheckInModal from '../components/CheckInModal'
 import CheckOutModal from '../components/CheckOutModal'
 import Confirm from '../components/Confirm'
+import { Odometer, Reveal } from '../components/motion'
 import { useApi } from '../hooks'
 import { post } from '../api'
 import { useData, useToast } from '../store'
@@ -21,10 +22,10 @@ const TABS = [
 function Row({ i, children }) {
   return (
     <motion.li
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: EASE, delay: Math.min(i, 10) * 0.05 }}
-      className="flex items-center gap-4 py-4 rule-b flex-wrap sm:flex-nowrap"
+      transition={{ duration: 0.8, ease: EASE, delay: Math.min(i, 10) * 0.06 }}
+      className="flex items-center gap-5 py-5 border-b border-line flex-wrap sm:flex-nowrap"
     >
       {children}
     </motion.li>
@@ -41,7 +42,6 @@ export default function Stays() {
   const [checkIn, setCheckIn] = useState(null)
   const [checkOut, setCheckOut] = useState(null)
   const [cancel, setCancel] = useState(null)
-
   const [status, setStatus] = useState('')
   const [q, setQ] = useState('')
 
@@ -60,11 +60,11 @@ export default function Stays() {
 
   return (
     <>
-      <PageHeader title="Check-in and check-out" subtitle="Receive arrivals, keep an eye on the house, and close accounts with the bill in front of you." />
+      <PageHeader title="Check-in and *check-out*" subtitle="Receive arrivals, keep an eye on the house, and close accounts with the bill in front of you." />
 
-      <div className="mb-8">
+      <Reveal className="mb-10">
         <Segmented label="Show" value={tab} onChange={setTab} options={TABS} />
-      </div>
+      </Reveal>
 
       {tab === 'arrivals' && (
         <section aria-label="Arrivals">
@@ -76,19 +76,19 @@ export default function Stays() {
               Every booked guest has been received. New bookings will appear here.
             </EmptyState>
           ) : (
-            <ul className="list-none m-0 p-0">
+            <ul className="list-none m-0 p-0 border-t border-line-strong">
               {sortedArrivals.map((r, i) => {
                 const delta = diffDays(toISO(today()), r.check_in)
                 return (
                   <Row key={r.id} i={i}>
                     <KeyFob number={r.room} status="available" size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="m-0 text-[19px] truncate">{r.guest}</p>
-                      <p className="m-0 text-[16px] text-muted">
+                      <p className="m-0 text-[17px] text-strong truncate">{r.guest}</p>
+                      <p className="m-0 text-[13.5px] text-muted">
                         Room {r.room}, {r.room_type}. {dayLabel(r.check_in)} to {dayLabel(r.check_out)}, {plural(r.nights, 'night')}, {plural(r.adults + r.children, 'guest')}
                       </p>
                     </div>
-                    <span className="font-ui text-[14px] text-muted w-[110px] hidden md:block">
+                    <span className="text-[12.5px] text-muted w-[110px] hidden md:block">
                       {delta === 0 ? 'Arrives today' : delta > 0 ? `In ${plural(delta, 'day')}` : `${plural(-delta, 'day')} late`}
                     </span>
                     <div className="flex gap-2 ml-auto">
@@ -117,23 +117,26 @@ export default function Stays() {
               Nobody is checked in. When a guest arrives their stay will be listed here with the running bill.
             </EmptyState>
           ) : (
-            <ul className="list-none m-0 p-0">
+            <ul className="list-none m-0 p-0 border-t border-line-strong">
               {inHouse.data.map((s, i) => {
-                const sub = s.nights * s.nightly_rate + Number(s.services)
-                const total = sub * 1.05
+                const total = (s.nights * s.nightly_rate + Number(s.services)) * 1.05
                 return (
                   <Row key={s.stay_id} i={i}>
                     <KeyFob number={s.room} status="occupied" size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="m-0 text-[19px] truncate">{s.guest}</p>
-                      <p className="m-0 text-[16px] text-muted">
+                      <p className="m-0 text-[17px] text-strong truncate">{s.guest}</p>
+                      <p className="m-0 text-[13.5px] text-muted">
                         Room {s.room}, {s.plan_name}. In since {dayLabel(s.actual_check_in)}, due out {dayLabel(s.planned_check_out)}
                       </p>
                     </div>
                     <div className="text-right mr-2 hidden sm:block">
-                      <p className="m-0 font-ui text-[13px] text-muted">Bill so far, with tax</p>
-                      <p className="m-0 text-[20px] font-semibold num">{inr(total)}</p>
-                      <p className="m-0 text-[14px] text-muted">{plural(s.nights, 'night')}, services {inr(s.services)}</p>
+                      <p className="m-0 text-[12px] text-muted">Bill so far, with tax</p>
+                      <p className="m-0 text-[18px] text-strong num">
+                        <Odometer value={total} format={(v) => inr(v)} />
+                      </p>
+                      <p className="m-0 text-[12.5px] text-muted">
+                        {plural(s.nights, 'night')}, services {inr(s.services)}
+                      </p>
                     </div>
                     <button className="btn btn-primary btn-sm ml-auto sm:ml-0" onClick={() => setCheckOut({ stay_id: s.stay_id, guest: s.guest, room: s.room })}>
                       Preview bill
@@ -148,7 +151,7 @@ export default function Stays() {
 
       {tab === 'all' && (
         <section aria-label="All reservations">
-          <div className="grid sm:grid-cols-[1fr_220px] gap-5 mb-6 max-w-[760px]">
+          <div className="grid sm:grid-cols-[1fr_230px] gap-6 mb-8 max-w-[780px]">
             <TextInput label="Find a guest or room" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or room number" />
             <SelectInput label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">Every status</option>
@@ -161,12 +164,12 @@ export default function Stays() {
           </div>
           {all.error && !all.data && <ErrorNote error={all.error} />}
           {!all.data ? (
-            <SkeletonRows rows={6} height={44} />
+            <SkeletonRows rows={6} height={46} />
           ) : all.data.length === 0 ? (
             <EmptyState title="Nothing found">No reservation matches that search. Clear the filters to see them all.</EmptyState>
           ) : (
-            <div className="overflow-x-auto thin-scroll">
-              <table className="w-full border-collapse min-w-[760px] text-[17px]">
+            <Reveal className="overflow-x-auto thin-scroll">
+              <table className="w-full border-collapse min-w-[780px] text-[15px]">
                 <thead>
                   <tr>
                     {['Guest', 'Room', 'Dates', 'Nights', 'Party', 'Rate plan', 'Status', ''].map((h) => (
@@ -179,14 +182,14 @@ export default function Stays() {
                 <tbody>
                   {all.data.map((r) => (
                     <tr key={r.id}>
-                      <td className="td">{r.guest}</td>
-                      <td className="td">{r.room}</td>
+                      <td className="td text-strong">{r.guest}</td>
+                      <td className="td num">{r.room}</td>
                       <td className="td whitespace-nowrap">
                         {dayLabel(r.check_in)} to {dayLabel(r.check_out)}
                       </td>
                       <td className="td num">{r.nights}</td>
                       <td className="td num">{r.adults + r.children}</td>
-                      <td className="td text-[16px] text-muted">{r.rate_plan}</td>
+                      <td className="td text-[14px] text-muted">{r.rate_plan}</td>
                       <td className="td">
                         <PillTag status={r.status} />
                       </td>
@@ -206,7 +209,7 @@ export default function Stays() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Reveal>
           )}
         </section>
       )}

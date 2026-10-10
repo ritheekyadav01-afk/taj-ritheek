@@ -1,13 +1,64 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#173528" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070708" />
+    <meta name="description" content="Taj Ritheek front desk: rooms, reservations, stays, billing, housekeeping and reports." />
     <title>Taj Ritheek Front Desk</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Before first paint: the remembered theme, whether the doors already played this session,
+      // and reduced motion. Nothing here touches the network.
+      (function () {
+        var d = document.documentElement;
+        try {
+          var t = localStorage.getItem('taj-theme');
+          if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          d.setAttribute('data-theme', t);
+          var m = document.querySelector('meta[name=theme-color]');
+          if (m) m.setAttribute('content', t === 'light' ? '#F7F7F5' : '#070708');
+        } catch (e) {}
+        try { if (sessionStorage.getItem('taj-doors')) d.classList.add('doors-seen'); } catch (e) {}
+        try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('reduce-motion'); } catch (e) {}
+      })();
+    </script>
+    <style>
+      /* The hotel doors are plain HTML so they are on screen from the very first frame. */
+      #boot { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+      #boot .boot-door { position: absolute; top: 0; bottom: 0; width: 50%; background: #070708; overflow: hidden; will-change: transform; }
+      #boot .boot-l { left: 0; box-shadow: inset -1px 0 0 #2A2A2E; }
+      #boot .boot-r { right: 0; box-shadow: inset 1px 0 0 #2A2A2E; }
+      #boot .boot-crest { position: absolute; top: 50%; width: 132px; height: 132px; margin-top: -66px; }
+      #boot .boot-l .boot-crest { right: -66px; }
+      #boot .boot-r .boot-crest { left: -66px; }
+      #boot .boot-seam { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: #8E9196; opacity: 0.55; }
+      #boot .boot-solo { display: none; position: absolute; top: 50%; left: 50%; width: 72px; height: 72px; margin: -36px 0 0 -36px; }
+      html.doors-seen #boot .boot-door, html.doors-seen #boot .boot-seam { display: none; }
+      html.doors-seen #boot { background: #070708; }
+      html.doors-seen[data-theme='light'] #boot { background: #F7F7F5; }
+      html.doors-seen #boot .boot-solo { display: block; }
+      html.doors-seen[data-theme='light'] #boot svg { color: #070708; }
+      #boot svg { display: block; width: 100%; height: 100%; color: #C3C6CB; }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-hidden="true">
+      <div class="boot-door boot-l">
+        <div class="boot-crest">
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="60" r="51" fill="none" stroke="currentColor" stroke-width="0.6"/><text x="60" y="79" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="56" fill="currentColor">T</text></svg>
+        </div>
+      </div>
+      <div class="boot-door boot-r">
+        <div class="boot-crest">
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="60" r="51" fill="none" stroke="currentColor" stroke-width="0.6"/><text x="60" y="79" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="56" fill="currentColor">T</text></svg>
+        </div>
+      </div>
+      <span class="boot-seam"></span>
+      <div class="boot-solo">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="60" y="79" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="56" fill="currentColor">T</text></svg>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

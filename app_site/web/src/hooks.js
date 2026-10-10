@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { animate, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
 import { get } from './api'
 import { useData } from './store'
 
@@ -27,22 +26,6 @@ export function useApi(path, { enabled = true } = {}) {
   }, [path, enabled, version])
 
   return state
-}
-
-/** Count a number up from 0 (or its previous value) over ~1.4s. Honors reduced motion. */
-export function useCountUp(target, { duration = 1.4, decimals = 0 } = {}) {
-  const reduce = useReducedMotion()
-  const mv = useMotionValue(reduce ? target : 0)
-  const text = useTransform(mv, (v) => v.toFixed(decimals))
-  useEffect(() => {
-    if (reduce) {
-      mv.set(target)
-      return undefined
-    }
-    const c = animate(mv, target, { duration, ease: [0.32, 0.72, 0, 1] })
-    return () => c.stop()
-  }, [target, duration, reduce, mv])
-  return { mv, text }
 }
 
 export function useDebounced(value, ms = 220) {

@@ -8,21 +8,25 @@ import BookingForm from '../components/BookingForm'
 import CheckInModal from '../components/CheckInModal'
 import CheckOutModal from '../components/CheckOutModal'
 import RuleError from '../components/RuleError'
+import { Reveal } from '../components/motion'
 import { useApi, useMedia } from '../hooks'
 import { post } from '../api'
 import { useData, useToast } from '../store'
 import { EASE } from '../motion'
-import { addDays, dateLabel, dayLabel, diffDays, inr, monthLabel, parseDate, plural, shortDate, toISO, today, weekday } from '../format'
+import { addDays, dateLabel, dayLabel, diffDays, inr, monthLabel, plural, shortDate, toISO, today, weekday } from '../format'
 
 const DAYS = 42
-const ROW_H = 72
-const HEAD_H = 84
+const ROW_H = 74
+const HEAD_H = 86
 
+// Reservation states read by form: booked is outlined, in house is solid ink, completed is hatched.
 const BAR = {
-  booked: { bg: 'var(--color-green)', fg: 'var(--color-marble)', label: 'Booked' },
-  checked_in: { bg: 'var(--color-brass)', fg: 'var(--color-ink)', label: 'In house' },
-  completed: { bg: 'var(--color-muted)', fg: 'var(--color-marble)', label: 'Completed' },
+  booked: { label: 'Booked' },
+  checked_in: { label: 'In house' },
+  completed: { label: 'Completed' },
 }
+
+let trailSeq = 0
 
 export default function Timeline() {
   const { bump } = useData()
@@ -30,13 +34,14 @@ export default function Timeline() {
   const narrow = useMedia('(max-width: 640px)')
   const coarse = useMedia('(pointer: coarse)')
   const W = narrow ? 44 : 50
-  const LABEL_W = narrow ? 84 : 176
+  const LABEL_W = narrow ? 84 : 180
 
   const [start, setStart] = useState(() => addDays(today(), -3))
   const end = addDays(start, DAYS)
   const { data, error } = useApi(`/timeline?start=${toISO(start)}&end=${toISO(end)}`)
 
   const [drag, setDrag] = useState(null) // { room_id, a, b, L, R, live }
+  const [trail, setTrail] = useState([]) // silver cells left behind while dragging
   const [pending, setPending] = useState(null) // selection waiting in the booking modal
   const [bar, setBar] = useState(null)
   const [checkIn, setCheckIn] = useState(null)
@@ -91,6 +96,15 @@ export default function Timeline() {
     return Math.max(0, Math.min(DAYS - 1, Math.floor(x / W)))
   }
 
+  const leaveTrail = (roomId, from, to) => {
+    const step = from < to ? 1 : -1
+    const cells = []
+    for (let i = from; i !== to + step; i += step) cells.push({ id: ++trailSeq, room_id: roomId, idx: i })
+    setTrail((t) => [...t.slice(-40), ...cells])
+    const ids = new Set(cells.map((c) => c.id))
+    window.setTimeout(() => setTrail((t) => t.filter((c) => !ids.has(c.id))), 1000)
+  }
+
   const openBooking = (roomId, lo, hi) => {
     setPending({ room_id: roomId, a: lo, b: hi })
     setDrag(null)
@@ -110,21 +124,24 @@ export default function Timeline() {
       // tap, then tap again to set the last night
       if (drag && drag.room_id === roomId && drag.live === false) {
         const b = Math.max(L, Math.min(R, i))
-        const lo = Math.min(drag.a, b)
-        const hi = Math.max(drag.a, b)
-        openBooking(roomId, lo, hi)
+        openBooking(roomId, Math.min(drag.a, b), Math.max(drag.a, b))
       } else {
         setDrag({ room_id: roomId, a: i, b: i, L, R, live: false })
+        leaveTrail(roomId, i, i)
       }
       return
     }
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setDrag({ room_id: roomId, a: i, b: i, L, R, live: true })
+    leaveTrail(roomId, i, i)
   }
   const onPointerMove = (e, roomId) => {
     if (!drag || !drag.live || drag.room_id !== roomId) return
     const i = Math.max(drag.L, Math.min(drag.R, idxFromEvent(e, roomId)))
-    if (i !== drag.b) setDrag({ ...drag, b: i })
+    if (i !== drag.b) {
+      leaveTrail(roomId, drag.b + (i > drag.b ? 1 : -1), i)
+      setDrag({ ...drag, b: i })
+    }
   }
   const onPointerUp = (e, roomId) => {
     if (!drag || !drag.live || drag.room_id !== roomId) return
@@ -132,7 +149,7 @@ export default function Timeline() {
     openBooking(roomId, Math.min(drag.a, drag.b), Math.max(drag.a, drag.b))
   }
 
-  // keyboard: focus a row, arrows move, shift+arrows extend, Enter books, Escape clears
+  // keyboard: focus a room, arrows move, shift+arrows extend, Enter books, Escape clears
   const onKeyDown = (e, roomId) => {
     const base = kb && kb.room_id === roomId ? kb : { room_id: roomId, a: Math.max(0, todayIdx), b: Math.max(0, todayIdx) }
     let next = null
@@ -184,9 +201,7 @@ export default function Timeline() {
         : null
 
   const pendingRoom = pending && data?.rooms.find((r) => r.room_id === pending.room_id)
-  const pendDates = pending
-    ? { ci: toISO(dates[Math.min(pending.a, pending.b)]), co: toISO(addDays(dates[Math.max(pending.a, pending.b)], 1)) }
-    : null
+  const pendDates = pending ? { ci: toISO(dates[Math.min(pending.a, pending.b)]), co: toISO(addDays(dates[Math.max(pending.a, pending.b)], 1)) } : null
 
   const cancelBooking = async () => {
     setCancelErr(null)
@@ -202,60 +217,67 @@ export default function Timeline() {
   }
 
   const roomOf = (id) => data?.rooms.find((r) => r.room_id === id)
+  const cellBg = (d, i) => {
+    if (i < todayIdx) return 'color-mix(in srgb, var(--text) 5%, var(--surface))'
+    if (d.getDay() === 0 || d.getDay() === 6) return 'color-mix(in srgb, var(--text) 2.5%, var(--surface))'
+    return undefined
+  }
 
   return (
     <>
-      <PageHeader title="Reservation timeline" subtitle="One row for every room. Drag across free nights to start a booking, or click a bar to see the stay.">
-        <div className="flex items-center gap-1">
-          <button className="btn btn-ghost btn-sm" onClick={() => shift(-14)} aria-label="Earlier two weeks">
-            <CaretLeft size={18} />
+      <PageHeader title="Reservation *timeline*" subtitle="One row for every room. Drag across free nights to start a booking, or open a bar to see the stay.">
+        <div className="flex items-center gap-1.5">
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => shift(-14)} aria-label="Earlier two weeks">
+            <CaretLeft size={17} weight="light" />
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setStart(addDays(today(), -3))}>
             Today
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => shift(14)} aria-label="Later two weeks">
-            <CaretRight size={18} />
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => shift(14)} aria-label="Later two weeks">
+            <CaretRight size={17} weight="light" />
           </button>
         </div>
       </PageHeader>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3 mb-5">
-        <ul className="list-none m-0 p-0 flex flex-wrap gap-x-6 gap-y-2" aria-label="Legend">
-          {Object.values(BAR).map((b) => (
-            <li key={b.label} className="flex items-center gap-2 font-ui text-[14px]">
-              <span aria-hidden="true" style={{ width: 22, height: 12, background: b.bg, display: 'inline-block' }} />
+      <Reveal className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3 mb-6">
+        <ul className="list-none m-0 p-0 flex flex-wrap gap-x-7 gap-y-2" aria-label="Legend">
+          {Object.entries(BAR).map(([k, b]) => (
+            <li key={k} className="flex items-center gap-2.5 text-[13px]">
+              <span aria-hidden="true" className={`bar bar--${k} relative`} style={{ position: 'relative', width: 26, height: 12, display: 'inline-block' }}>
+                <span className="bar-fill" />
+              </span>
               {b.label}
             </li>
           ))}
-          <li className="flex items-center gap-2 font-ui text-[14px]">
-            <span aria-hidden="true" style={{ width: 22, height: 12, border: '1.5px dashed var(--color-claret)', display: 'inline-block' }} />
+          <li className="flex items-center gap-2.5 text-[13px]">
+            <span aria-hidden="true" style={{ width: 26, height: 12, border: '1.5px dashed var(--accent)', display: 'inline-block' }} />
             Your selection
           </li>
         </ul>
-        <p className="m-0 font-ui text-[14px] text-muted">
+        <p className="m-0 text-[13px] text-muted">
           {shortDate(toISO(start))} to {dateLabel(toISO(end))}. {coarse ? 'Tap a first night, then a last night.' : 'Keyboard: focus a room, use the arrow keys, Enter to book.'}
         </p>
-      </div>
+      </Reveal>
       <p className="sr-only" aria-live="polite">
         {announce}
       </p>
 
       {error && !data && <ErrorNote error={error} />}
       {!data ? (
-        <Skeleton style={{ height: 520 }} />
+        <Skeleton style={{ height: 560 }} />
       ) : (
-        <div className="double-rule bg-marble">
+        <Reveal className="double-rule bg-surface">
           <div className="overflow-x-auto thin-scroll relative m-[5px]">
             <div className="relative" style={{ width: LABEL_W + DAYS * W }}>
               {/* header */}
-              <div className="flex sticky top-0 z-20 bg-marble" style={{ height: HEAD_H }}>
-                <div className="sticky left-0 z-30 bg-marble shrink-0 flex items-end p-3" style={{ width: LABEL_W, borderRight: '1px solid var(--color-hairline)', borderBottom: '1px solid var(--color-ink)' }}>
-                  <span className="font-ui text-[13px] text-muted">Room</span>
+              <div className="flex sticky top-0 z-20 bg-surface" style={{ height: HEAD_H }}>
+                <div className="sticky left-0 z-30 bg-surface shrink-0 flex items-end p-3 border-r border-line border-b border-b-line-strong" style={{ width: LABEL_W }}>
+                  <span className="text-[12.5px] text-muted">Room</span>
                 </div>
-                <div className="flex-1" style={{ borderBottom: '1px solid var(--color-ink)' }}>
+                <div className="flex-1 border-b border-line-strong">
                   <div className="flex" style={{ height: 30 }}>
                     {months.map((m) => (
-                      <div key={m.k} className="sc text-[17px] text-claret px-2 truncate" style={{ width: m.n * W, borderRight: '1px solid var(--color-hairline)', lineHeight: '30px' }}>
+                      <div key={m.k} className="micro px-2.5 truncate border-r border-line" style={{ width: m.n * W, lineHeight: '30px' }}>
                         {m.label}
                       </div>
                     ))}
@@ -264,17 +286,12 @@ export default function Timeline() {
                     {dates.map((d, i) => {
                       const iso = toISO(d)
                       const isToday = i === todayIdx
-                      const weekend = d.getDay() === 0 || d.getDay() === 6
                       return (
-                        <div
-                          key={iso}
-                          className="grid place-items-center text-center"
-                          style={{ width: W, height: 54, borderRight: '1px solid var(--color-hairline)', background: weekend ? 'color-mix(in srgb, #E8E3D8 55%, #F2F0EB)' : undefined }}
-                        >
-                          <span className="font-ui text-[13px] text-muted leading-none">{weekday(iso).slice(0, 3)}</span>
+                        <div key={iso} className="grid place-items-center text-center border-r border-line" style={{ width: W, height: 55, background: cellBg(d, i) }}>
+                          <span className="text-[11.5px] text-muted leading-none">{weekday(iso).slice(0, 3)}</span>
                           <span
-                            className="num text-[18px] leading-none w-[30px] h-[30px] grid place-items-center"
-                            style={isToday ? { background: 'var(--color-green)', color: 'var(--color-marble)', borderRadius: 99 } : undefined}
+                            className={`num text-[15px] leading-none w-[28px] h-[28px] grid place-items-center ${isToday ? 'bg-text text-bg' : 'text-text'}`}
+                            style={isToday ? { borderRadius: 99 } : undefined}
                             aria-label={isToday ? 'Today' : undefined}
                           >
                             {d.getDate()}
@@ -288,10 +305,13 @@ export default function Timeline() {
 
               {/* today line */}
               {todayIdx >= 0 && todayIdx < DAYS && (
-                <span
+                <motion.span
                   aria-hidden="true"
-                  className="absolute z-10 pointer-events-none"
-                  style={{ left: LABEL_W + (todayIdx + 0.5) * W, top: HEAD_H, bottom: 0, width: 0, borderLeft: '1.5px solid var(--color-brass)' }}
+                  className="absolute z-[5] pointer-events-none w-px bg-accent"
+                  style={{ left: LABEL_W + (todayIdx + 0.5) * W, top: HEAD_H, bottom: 0, originY: 0 }}
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={{ duration: 1.3, ease: EASE, delay: 0.3 }}
                 />
               )}
 
@@ -299,19 +319,19 @@ export default function Timeline() {
               {data.rooms.map((room, ri) => {
                 const rowSel = sel && sel.room_id === room.room_id ? sel : null
                 return (
-                  <div key={room.room_id} className="flex" style={{ height: ROW_H, borderBottom: '1px solid var(--color-hairline)' }}>
-                    <div className="sticky left-0 z-10 bg-marble shrink-0 flex items-center gap-3 px-3" style={{ width: LABEL_W, borderRight: '1px solid var(--color-hairline)' }}>
+                  <div key={room.room_id} className="flex border-b border-line" style={{ height: ROW_H }}>
+                    <div className="sticky left-0 z-10 bg-surface shrink-0 flex items-center gap-3.5 px-3 border-r border-line" style={{ width: LABEL_W }}>
                       <KeyFob number={room.room_number} status={room.status} size="sm" />
                       {!narrow && (
                         <div className="min-w-0">
-                          <p className="m-0 text-[17px] leading-tight whitespace-nowrap">Room {room.room_number}</p>
-                          <p className="m-0 font-ui text-[13px] text-muted truncate">{room.type_name}</p>
+                          <p className="m-0 text-[15px] text-strong leading-tight whitespace-nowrap">Room {room.room_number}</p>
+                          <p className="m-0 text-[12.5px] text-muted truncate">{room.type_name}</p>
                         </div>
                       )}
                     </div>
                     <div
                       ref={(el) => (tracks.current[room.room_id] = el)}
-                      className="relative select-none outline-none focus-visible:[box-shadow:inset_0_0_0_2px_var(--color-brass)]"
+                      className="relative select-none outline-none focus-visible:[box-shadow:inset_0_0_0_2px_var(--focus)]"
                       style={{ width: DAYS * W, touchAction: coarse ? 'pan-x pan-y' : 'pan-y', cursor: 'crosshair' }}
                       tabIndex={0}
                       role="group"
@@ -323,26 +343,23 @@ export default function Timeline() {
                       onFocus={() => kb && kb.room_id !== room.room_id && setKb(null)}
                     >
                       <div className="absolute inset-0 flex pointer-events-none" aria-hidden="true">
-                        {dates.map((d, i) => {
-                          const weekend = d.getDay() === 0 || d.getDay() === 6
-                          return (
-                            <div
-                              key={i}
-                              style={{
-                                width: W,
-                                borderRight: '1px solid var(--color-hairline)',
-                                background: i < todayIdx ? 'color-mix(in srgb, #E8E3D8 80%, #F2F0EB)' : weekend ? 'color-mix(in srgb, #E8E3D8 55%, #F2F0EB)' : undefined,
-                              }}
-                            />
-                          )
-                        })}
+                        {dates.map((d, i) => (
+                          <div key={i} className="border-r border-line" style={{ width: W, background: cellBg(d, i) }} />
+                        ))}
                       </div>
+
+                      {trail
+                        .filter((t) => t.room_id === room.room_id)
+                        .map((t) => (
+                          <span key={t.id} className="trail-cell" aria-hidden="true" style={{ left: t.idx * W + 1, width: W - 2, top: 8, height: ROW_H - 16 }} />
+                        ))}
 
                       {(barsByRoom[room.room_id] || []).map((b, bi) => {
                         const meta = BAR[b.status] || BAR.completed
                         const l = Math.max((b.ci + 0.5) * W, 0)
                         const r = Math.min((b.co + 0.5) * W, DAYS * W)
                         if (r <= l) return null
+                        const delay = 0.3 + ri * 0.08 + bi * 0.05
                         return (
                           <motion.button
                             key={b.id}
@@ -353,28 +370,29 @@ export default function Timeline() {
                               setCancelErr(null)
                               setBar({ ...b, room_number: room.room_number })
                             }}
-                            initial={{ clipPath: 'inset(0 100% 0 0)', opacity: 0 }}
-                            animate={{ clipPath: 'inset(0 0% 0 0)', opacity: 1 }}
-                            transition={{ duration: 0.9, ease: EASE, delay: 0.25 + ri * 0.09 + bi * 0.05 }}
                             whileHover={{ y: -2 }}
-                            className="absolute text-left px-3 overflow-hidden cursor-pointer"
-                            style={{
-                              left: l + 2,
-                              width: r - l - 4,
-                              top: 11,
-                              height: ROW_H - 22,
-                              background: meta.bg,
-                              color: meta.fg,
-                              border: 0,
-                              borderRadius: 2,
-                              boxShadow: '0 8px 12px -8px color-mix(in srgb, #231A16 55%, transparent)',
-                            }}
+                            transition={{ duration: 0.5, ease: EASE }}
+                            className={`bar bar--${b.status in BAR ? b.status : 'completed'}`}
+                            style={{ left: l + 2, width: r - l - 4, top: 12, height: ROW_H - 24 }}
                             aria-label={`${b.guest}, room ${room.room_number}, ${dayLabel(b.check_in)} to ${dayLabel(b.check_out)}, ${meta.label}`}
                           >
-                            <span className="block text-[17px] font-semibold leading-tight truncate">{b.guest}</span>
-                            <span className="block font-ui text-[13px] leading-tight truncate" style={{ opacity: 0.92 }}>
-                              {plural(diffDays(b.check_in, b.check_out), 'night')}, {meta.label.toLowerCase()}
-                            </span>
+                            <motion.span
+                              className="bar-fill"
+                              initial={{ scaleX: 0 }}
+                              animate={{ scaleX: 1 }}
+                              transition={{ duration: 1.0, ease: EASE, delay }}
+                            />
+                            <motion.span
+                              className="bar-label"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.6, ease: EASE, delay: delay + 0.55 }}
+                            >
+                              <span className="block text-[14.5px] font-medium leading-tight truncate">{b.guest}</span>
+                              <span className="block text-[12px] leading-tight truncate opacity-80">
+                                {plural(diffDays(b.check_in, b.check_out), 'night')}, {meta.label.toLowerCase()}
+                              </span>
+                            </motion.span>
                           </motion.button>
                         )
                       })}
@@ -390,17 +408,14 @@ export default function Timeline() {
                           style={{
                             left: (rowSel.lo + 0.5) * W + 2,
                             width: (rowSel.hi - rowSel.lo + 1) * W - 4,
-                            top: 11,
-                            height: ROW_H - 22,
-                            border: '1.5px dashed var(--color-claret)',
-                            background: 'color-mix(in srgb, #5A1626 10%, transparent)',
-                            borderRadius: 2,
-                            transition: 'width .25s cubic-bezier(.32,.72,0,1), left .25s cubic-bezier(.32,.72,0,1)',
+                            top: 12,
+                            height: ROW_H - 24,
+                            border: '1.5px dashed var(--accent)',
+                            background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
+                            transition: 'width .35s cubic-bezier(0.22,1,0.36,1), left .35s cubic-bezier(0.22,1,0.36,1)',
                           }}
                         >
-                          <span className="font-ui text-[14px] font-medium text-claret whitespace-nowrap px-1">
-                            {plural(rowSel.hi - rowSel.lo + 1, 'night')}
-                          </span>
+                          <span className="text-[13px] font-medium text-strong whitespace-nowrap px-1">{plural(rowSel.hi - rowSel.lo + 1, 'night')}</span>
                         </motion.div>
                       )}
                     </div>
@@ -409,56 +424,42 @@ export default function Timeline() {
               })}
             </div>
           </div>
-        </div>
+        </Reveal>
       )}
 
-      {data && data.bars.length === 0 && (
-        <p className="italic text-muted text-[18px] mt-6">
-          No reservations fall in these weeks. Drag across any free nights to make the first booking.
-        </p>
-      )}
+      {data && data.bars.length === 0 && <p className="text-muted text-[15.5px] mt-6">No reservations fall in these weeks. Drag across any free nights to make the first booking.</p>}
 
       {/* booking from the drag */}
-      <Modal
-        open={!!pending && !!pendingRoom}
-        onClose={() => setPending(null)}
-        title={pendingRoom ? `Book room ${pendingRoom.room_number}` : ''}
-        size="xl"
-      >
+      <Modal open={!!pending && !!pendingRoom} onClose={() => setPending(null)} title={pendingRoom ? `Book room ${pendingRoom.room_number}` : ''} size="xl">
         {pending && pendingRoom && (
-          <BookingForm
-            compact
-            lockRoom
-            initial={{ roomId: pending.room_id, checkIn: pendDates.ci, checkOut: pendDates.co }}
-            onAnother={() => setPending(null)}
-          />
+          <BookingForm compact lockRoom initial={{ roomId: pending.room_id, checkIn: pendDates.ci, checkOut: pendDates.co }} onAnother={() => setPending(null)} />
         )}
       </Modal>
 
       {/* a booking's details */}
       <Modal open={!!bar} onClose={() => setBar(null)} title={bar ? bar.guest : ''} size="sm">
         {bar && (
-          <div className="grid gap-5">
+          <div className="grid gap-6">
             <div className="flex items-center gap-4">
               <KeyFob number={bar.room_number} status={roomOf(bar.room_id)?.status || 'available'} size="sm" />
-              <div>
-                <p className="m-0 text-[19px]">
+              <div className="grid gap-1.5">
+                <p className="m-0 text-[16px] text-strong">
                   Room {bar.room_number}, {roomOf(bar.room_id)?.type_name}
                 </p>
                 <PillTag status={bar.status} />
               </div>
             </div>
-            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[17px]">
-              <dt className="font-ui text-[14px] text-muted self-center">Stay</dt>
+            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-7 gap-y-2.5 text-[15px]">
+              <dt className="text-[13px] text-muted self-center">Stay</dt>
               <dd className="m-0">
                 {dayLabel(bar.check_in)} to {dayLabel(bar.check_out)}, {plural(diffDays(bar.check_in, bar.check_out), 'night')}
               </dd>
-              <dt className="font-ui text-[14px] text-muted self-center">Party</dt>
+              <dt className="text-[13px] text-muted self-center">Party</dt>
               <dd className="m-0">
                 {plural(bar.adults, 'adult')}
                 {bar.children ? `, ${plural(bar.children, 'child', 'children')}` : ''}
               </dd>
-              <dt className="font-ui text-[14px] text-muted self-center">Rate</dt>
+              <dt className="text-[13px] text-muted self-center">Rate</dt>
               <dd className="m-0">
                 {bar.plan_name}, {inr(bar.nightly_rate)} a night
               </dd>
@@ -483,7 +484,7 @@ export default function Timeline() {
               )}
               {bar.status === 'booked' && confirmCancel && (
                 <>
-                  <button className="btn btn-claret" onClick={cancelBooking}>
+                  <button className="btn btn-danger" onClick={cancelBooking}>
                     Yes, cancel it
                   </button>
                   <button className="btn btn-ghost" onClick={() => setConfirmCancel(false)}>
@@ -502,7 +503,7 @@ export default function Timeline() {
                   Check out
                 </button>
               )}
-              {bar.status === 'completed' && <p className="m-0 italic text-muted text-[17px]">This stay is complete. Its invoice is under Billing.</p>}
+              {bar.status === 'completed' && <p className="m-0 text-muted text-[15px]">This stay is complete. Its invoice is under Billing.</p>}
             </div>
           </div>
         )}

@@ -8,6 +8,7 @@ import { usePalette } from '../store'
 import { useDebounced } from '../hooks'
 import { get } from '../api'
 import { EASE } from '../motion'
+import { lockScroll, unlockScroll } from '../smooth'
 
 const ACTIONS = [
   { label: 'Book a room', to: '/book', hint: 'Dates, party and guest' },
@@ -19,10 +20,7 @@ const ACTIONS = [
 
 export default function CommandPalette() {
   const { open, setOpen } = usePalette()
-  return createPortal(
-    <AnimatePresence>{open && <Palette key="palette" close={() => setOpen(false)} />}</AnimatePresence>,
-    document.body,
-  )
+  return createPortal(<AnimatePresence>{open && <Palette key="palette" close={() => setOpen(false)} />}</AnimatePresence>, document.body)
 }
 
 function Palette({ close }) {
@@ -37,9 +35,13 @@ function Palette({ close }) {
   const opener = useRef(document.activeElement)
 
   useEffect(() => {
+    lockScroll()
     input.current?.focus()
     const back = opener.current
-    return () => back?.focus?.({ preventScroll: true })
+    return () => {
+      unlockScroll()
+      back?.focus?.({ preventScroll: true })
+    }
   }, [])
 
   useEffect(() => {
@@ -63,12 +65,8 @@ function Palette({ close }) {
     const needle = q.trim().toLowerCase()
     const match = (s) => !needle || s.toLowerCase().includes(needle)
     const out = []
-    NAV.filter((n) => match(n.label)).forEach((n) =>
-      out.push({ group: 'Go to', label: n.label, icon: n.icon, run: () => nav(n.to) }),
-    )
-    ACTIONS.filter((a) => match(a.label)).forEach((a) =>
-      out.push({ group: 'Do', label: a.label, hint: a.hint, icon: Plus, run: () => nav(a.to) }),
-    )
+    NAV.filter((n) => match(n.label)).forEach((n) => out.push({ group: 'Go to', label: n.label, icon: n.icon, run: () => nav(n.to) }))
+    ACTIONS.filter((a) => match(a.label)).forEach((a) => out.push({ group: 'Do', label: a.label, hint: a.hint, icon: Plus, run: () => nav(a.to) }))
     found.guests.forEach((g) =>
       out.push({ group: 'Guests', label: g.full_name, hint: g.email, icon: User, run: () => nav(`/guests?focus=${g.guest_id}`) }),
     )
@@ -110,27 +108,27 @@ function Palette({ close }) {
   let lastGroup = null
   return (
     <motion.div
-      className="fixed inset-0 z-[80] flex justify-center items-start px-3 pt-[12vh]"
+      className="fixed inset-0 z-[85] flex justify-center items-start px-3 pt-[12vh]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
+      transition={{ duration: 0.45, ease: EASE }}
       onKeyDown={onKeyDown}
     >
-      <div className="absolute inset-0" style={{ background: 'color-mix(in srgb, #173528 62%, transparent)' }} onClick={close} aria-hidden="true" />
+      <div className="absolute inset-0 backdrop-blur-[3px]" style={{ background: 'var(--scrim)' }} onClick={close} aria-hidden="true" />
       <motion.div
         role="dialog"
         aria-modal="true"
         aria-label="Search the desk"
-        className="double-rule bg-marble relative w-[min(640px,100%)] flex flex-col"
-        style={{ maxHeight: '70dvh', boxShadow: '0 30px 60px -30px color-mix(in srgb, #231A16 60%, transparent)' }}
-        initial={{ y: -14, opacity: 0 }}
+        className="double-rule bg-surface relative w-[min(660px,100%)] flex flex-col"
+        style={{ maxHeight: '70dvh', boxShadow: 'var(--shadow)' }}
+        initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -8, opacity: 0 }}
-        transition={{ duration: 0.55, ease: EASE }}
+        transition={{ duration: 0.6, ease: EASE }}
       >
-        <div className="flex items-center gap-3 px-6 pt-5 pb-4 rule-b">
-          <MagnifyingGlass size={22} weight="light" className="text-muted" />
+        <div className="flex items-center gap-4 px-6 pt-5 pb-4 border-b border-line">
+          <MagnifyingGlass size={20} weight="light" className="text-muted" />
           <input
             ref={input}
             value={q}
@@ -141,16 +139,15 @@ function Palette({ close }) {
             aria-expanded="true"
             aria-controls="palette-list"
             aria-activedescendant={items[active] ? `pal-${active}` : undefined}
-            className="flex-1 bg-transparent border-0 outline-none text-[19px] placeholder:text-muted min-w-0"
-            style={{ fontFamily: 'var(--font-body)' }}
+            className="flex-1 bg-transparent border-0 outline-none text-[18px] font-light text-text placeholder:text-muted min-w-0"
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="font-ui text-[13px] text-muted">Esc</kbd>
+          <kbd className="text-[12px] text-muted tracking-[0.08em]">Esc</kbd>
         </div>
-        <ul id="palette-list" role="listbox" ref={listRef} className="list-none m-0 p-2 overflow-y-auto thin-scroll">
+        <ul id="palette-list" role="listbox" ref={listRef} data-lenis-prevent className="list-none m-0 p-2 overflow-y-auto thin-scroll">
           {items.length === 0 && (
-            <li className="px-4 py-8 text-center italic text-muted text-[17px]">
+            <li className="px-4 py-10 text-center text-muted text-[15px]">
               {searching ? 'Looking through the register' : 'Nothing matches that. Try a guest name or a room number.'}
             </li>
           )}
@@ -158,29 +155,25 @@ function Palette({ close }) {
             const head = it.group !== lastGroup
             lastGroup = it.group
             const Icon = it.icon
+            const on = i === active
             return (
               <li key={`${it.group}-${it.label}-${i}`} role="presentation">
-                {head && <p className="m-0 px-4 pt-3 pb-1 font-ui text-[13px] text-muted">{it.group}</p>}
+                {head && <p className="micro m-0 px-4 pt-4 pb-2">{it.group}</p>}
                 <div
                   id={`pal-${i}`}
                   role="option"
-                  aria-selected={i === active}
+                  aria-selected={on}
                   onMouseMove={() => setActive(i)}
                   onClick={() => choose(it)}
-                  className="flex items-center gap-3 px-4 min-h-[46px] cursor-pointer transition-colors duration-300"
-                  style={{
-                    background: i === active ? 'var(--color-green)' : 'transparent',
-                    color: i === active ? 'var(--color-marble)' : 'var(--color-ink)',
-                  }}
+                  className={`relative flex items-center gap-3.5 px-4 min-h-[46px] cursor-pointer transition-colors duration-300 ${on ? 'text-bg' : 'text-text'}`}
                 >
-                  <Icon size={20} weight="light" />
-                  <span className="flex-1 min-w-0 truncate text-[17px]">{it.label}</span>
-                  {it.hint && (
-                    <span className="font-ui text-[13px] truncate max-w-[40%]" style={{ color: i === active ? 'var(--color-brass-soft)' : 'var(--color-muted)' }}>
-                      {it.hint}
-                    </span>
+                  {on && (
+                    <motion.span layoutId="pal-active" className="absolute inset-0 bg-text" transition={{ duration: 0.45, ease: EASE }} aria-hidden="true" />
                   )}
-                  {i === active && <ArrowElbowDownLeft size={16} />}
+                  <Icon size={18} weight="light" className="relative" />
+                  <span className="relative flex-1 min-w-0 truncate text-[15.5px]">{it.label}</span>
+                  {it.hint && <span className={`relative text-[12.5px] truncate max-w-[40%] ${on ? 'opacity-80' : 'text-muted'}`}>{it.hint}</span>}
+                  {on && <ArrowElbowDownLeft size={15} className="relative" />}
                 </div>
               </li>
             )

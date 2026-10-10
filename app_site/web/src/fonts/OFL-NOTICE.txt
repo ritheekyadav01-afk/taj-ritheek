@@ -1,0 +1,4 @@
+rupee-sans.woff2  - one glyph (U+20B9 INDIAN RUPEE SIGN) subset from Inter, (c) 2016 The Inter Project Authors.
+rupee-serif.woff2 - one glyph (U+20B9 INDIAN RUPEE SIGN) subset from Newsreader, (c) 2020 The Newsreader Project Authors.
+Both are licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org).
+They exist because Bodoni Moda and Jost have no rupee sign; the @font-face rules restrict them to U+20B9.

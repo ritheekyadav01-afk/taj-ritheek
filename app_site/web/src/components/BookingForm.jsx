@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import KeyFob from './KeyFob'
 import RuleError from './RuleError'
-import CountUp from './CountUp'
-import { Segmented, SelectInput, Skeleton, Stepper, TextInput } from './ui'
+import { Display, Odometer, Reveal } from './motion'
+import { SectionTitle, Segmented, SelectInput, Skeleton, Stepper, TextInput } from './ui'
 import { useApi } from '../hooks'
 import { post } from '../api'
 import { useData, useToast } from '../store'
@@ -15,8 +15,8 @@ const TAX = 0.05
 const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(parseDate(s).getTime())
 
 /**
- * One booking form for the Book page and for the timeline drag.
- * Every rule violation comes back from the database and is shown as-is.
+ * One booking form for the Book page and for the timeline drag. Three steps in order
+ * (so they carry Roman numerals). Every rule violation comes back from the database as-is.
  */
 export default function BookingForm({ initial = {}, lockRoom = false, onBooked, onAnother, compact = false }) {
   const { bump } = useData()
@@ -35,16 +35,16 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
   const [booked, setBooked] = useState(null)
 
   const datesOk = validDate(ci) && validDate(co)
-  const path = datesOk
-    ? `/availability?check_in=${ci}&check_out=${co}&adults=${adults}&children=${children}`
-    : null
+  const path = datesOk ? `/availability?check_in=${ci}&check_out=${co}&adults=${adults}&children=${children}` : null
   const avail = useApi(path, { enabled: datesOk })
   const guests = useApi('/guests')
 
   const rooms = useMemo(() => {
     let list = avail.data || []
     if (lockRoom && initial.roomId) list = list.filter((r) => r.room_id === initial.roomId)
-    return [...list].sort((a, b) => Number(a.booked || a.over_capacity) - Number(b.booked || b.over_capacity) || a.room_number.localeCompare(b.room_number))
+    return [...list].sort(
+      (a, b) => Number(a.booked || a.over_capacity) - Number(b.booked || b.over_capacity) || a.room_number.localeCompare(b.room_number),
+    )
   }, [avail.data, lockRoom, initial.roomId])
 
   const room = rooms.find((r) => r.room_id === roomId)
@@ -77,7 +77,7 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
       }
       const r = await post('/reservations', body)
       const g = mode === 'existing' ? guests.data?.find((x) => String(x.guest_id) === String(guestId))?.full_name : ng.full_name
-      setBooked({ id: r.reservation_id, room: room?.room_number, guest: g, ci, co, nights, status: room?.status })
+      setBooked({ id: r.reservation_id, room: room?.room_number, guest: g, ci, co, nights })
       bump()
       toast('Booking confirmed', `Room ${room?.room_number} for ${g}, ${dayLabel(ci)} to ${dayLabel(co)}.`)
       onBooked?.(r)
@@ -90,25 +90,28 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
 
   if (booked) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: EASE }}
-        className="grid place-items-center text-center py-10 gap-6"
-      >
-        <motion.div
-          initial={{ y: -90, rotate: 6, opacity: 0 }}
-          animate={{ y: 0, rotate: 0, opacity: 1 }}
-          transition={{ duration: 1.1, ease: EASE }}
-          style={{ originX: 0.5, originY: 0 }}
-        >
-          <KeyFob number={booked.room} status="available" size="lg" />
-        </motion.div>
+      <div className="grid place-items-center text-center py-12 gap-8">
+        <div className="rack px-14 pt-6 pb-10">
+          <motion.div
+            className="relative z-[1]"
+            initial={{ y: -150, rotate: 7, opacity: 0 }}
+            animate={{ y: 0, opacity: 1, rotate: [7, -5, 2.6, -1.1, 0.4, 0] }}
+            transition={{ y: { duration: 0.75, ease: EASE }, opacity: { duration: 0.4 }, rotate: { duration: 1.9, ease: 'easeOut', delay: 0.45 } }}
+            style={{ originX: 0.5, originY: 0 }}
+          >
+            <KeyFob number={booked.room} status="available" size="lg" sheen sheenDelay={0.8} />
+          </motion.div>
+        </div>
         <div>
-          <p className="font-display text-[34px] text-claret m-0">Reserved for {booked.guest}</p>
-          <p className="m-0 mt-3 text-[19px] italic text-muted">
+          <Display as="p" text={`Reserved for *${booked.guest}*`} className="m-0 text-[36px] sm:text-[44px] text-strong" delay={0.3} />
+          <motion.p
+            className="m-0 mt-4 text-[16px] text-muted"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, ease: EASE, delay: 0.7 }}
+          >
             Room {booked.room}, {dayLabel(booked.ci)} to {dayLabel(booked.co)} ({plural(booked.nights, 'night')}). Booking number {booked.id}.
-          </p>
+          </motion.p>
         </div>
         <div className="flex flex-wrap gap-3 justify-center">
           <Link className="btn btn-primary" to="/timeline">
@@ -118,16 +121,18 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
             {onAnother ? 'Close' : 'Book another room'}
           </button>
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   return (
-    <form onSubmit={submit} className={`grid gap-10 ${compact ? '' : 'xl:grid-cols-[minmax(0,1fr)_340px]'} items-start`} noValidate>
-      <div className="grid gap-10 min-w-0">
-        <fieldset className="border-0 p-0 m-0 min-w-0">
-          <legend className="sc text-[22px] text-claret mb-4 p-0">The stay</legend>
-          <div className="grid sm:grid-cols-2 gap-5">
+    <form onSubmit={submit} className={`grid gap-14 ${compact ? '' : 'xl:grid-cols-[minmax(0,1fr)_360px]'} items-start`} noValidate>
+      <div className="grid gap-14 min-w-0">
+        <Reveal as="fieldset" className="border-0 p-0 m-0 min-w-0">
+          <legend className="p-0 w-full">
+            <SectionTitle numeral="I">The stay</SectionTitle>
+          </legend>
+          <div className="grid sm:grid-cols-2 gap-6">
             <TextInput label="Check-in" type="date" value={ci} onChange={(e) => setCi(e.target.value)} />
             <TextInput
               label="Check-out"
@@ -137,23 +142,25 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
               help={datesOk && nights > 0 ? plural(nights, 'night') : undefined}
             />
           </div>
-          <div className="flex flex-wrap gap-x-10 gap-y-4 mt-5">
+          <div className="flex flex-wrap gap-x-10 gap-y-5 mt-6">
             <Stepper label="Adults" value={adults} onChange={setAdults} min={1} max={8} />
             <Stepper label="Children" value={children} onChange={setChildren} min={0} max={6} />
           </div>
-        </fieldset>
+        </Reveal>
 
-        <fieldset className="border-0 p-0 m-0 min-w-0">
-          <legend className="sc text-[22px] text-claret mb-4 p-0">{lockRoom ? 'The room' : 'Choose a room and a rate'}</legend>
-          <RuleError error={avail.error} className="mb-4" />
+        <Reveal as="fieldset" className="border-0 p-0 m-0 min-w-0" delay={0.05}>
+          <legend className="p-0 w-full">
+            <SectionTitle numeral="II">{lockRoom ? 'The room' : 'Choose a room and a rate'}</SectionTitle>
+          </legend>
+          <RuleError error={avail.error} className="mb-5" />
           {avail.loading && !avail.data ? (
             <div className="grid gap-3">
               {[0, 1, 2].map((i) => (
-                <Skeleton key={i} style={{ height: 84 }} />
+                <Skeleton key={i} style={{ height: 92 }} />
               ))}
             </div>
           ) : rooms.length === 0 && !avail.error ? (
-            <p className="m-0 italic text-muted text-[18px]">No rooms are open for sale. Rooms under maintenance are not offered.</p>
+            <p className="m-0 text-muted text-[15.5px]">No rooms are open for sale. Rooms under maintenance are not offered.</p>
           ) : (
             <ul className="list-none m-0 p-0 grid gap-3" role="radiogroup" aria-label="Rooms">
               {rooms.map((r, i) => {
@@ -163,17 +170,24 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
                   <motion.li
                     key={r.room_id}
                     layout="position"
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.55, ease: EASE, delay: Math.min(i, 8) * 0.05 }}
-                    className="relative"
+                    transition={{ duration: 0.75, ease: EASE, delay: Math.min(i, 8) * 0.05 }}
+                    className="relative border transition-colors duration-500"
                     style={{
-                      border: `1px solid ${on ? 'var(--color-brass)' : 'var(--color-hairline)'}`,
-                      background: on ? 'var(--color-vellum)' : 'transparent',
-                      transition: 'background-color .5s, border-color .5s',
+                      borderColor: on ? 'var(--text)' : 'var(--line)',
+                      background: on ? 'color-mix(in srgb, var(--text) 4%, var(--surface))' : 'var(--surface)',
                     }}
                   >
-                    <div className="flex items-center gap-4 p-4 flex-wrap sm:flex-nowrap">
+                    {on && (
+                      <motion.span
+                        layoutId="room-choice"
+                        className="absolute left-0 top-0 bottom-0 w-[2px] bg-text"
+                        transition={{ duration: 0.6, ease: EASE }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <div className="flex items-center gap-5 p-4 sm:p-5 flex-wrap sm:flex-nowrap">
                       <button
                         type="button"
                         role="radio"
@@ -183,19 +197,19 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
                           setPlanId(r.plans[0]?.rate_plan_id ?? null)
                           setError(null)
                         }}
-                        className="flex items-center gap-4 text-left min-w-0 flex-1 bg-transparent border-0 p-0 cursor-pointer"
+                        className="flex items-center gap-5 text-left min-w-0 basis-full sm:basis-0 sm:flex-1 bg-transparent border-0 p-0 cursor-pointer"
                         style={{ minHeight: 64 }}
                       >
                         <KeyFob number={r.room_number} status={r.status} size="sm" />
                         <span className="min-w-0">
-                          <span className="block text-[19px] leading-tight">
+                          <span className="block text-[17px] text-strong leading-tight">
                             Room {r.room_number}, {r.type_name}
                           </span>
-                          <span className="block text-[15px] text-muted">
+                          <span className="block text-[13.5px] text-muted mt-0.5">
                             Sleeps {r.capacity}. {r.description}
                           </span>
                           {flagged && (
-                            <span className="block font-ui text-[14px] mt-1" style={{ color: 'var(--color-claret-light)' }}>
+                            <span className="block text-[12.5px] mt-1.5 text-error-text">
                               {r.booked ? 'Held for these dates' : ''}
                               {r.booked && r.over_capacity ? ', and ' : ''}
                               {r.over_capacity ? `Too small for ${adults + children} guests` : ''}
@@ -217,15 +231,10 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
                               }}
                               aria-pressed={sel}
                               title={p.description}
-                              className="font-ui text-left px-3 py-2 min-h-[44px] transition-colors duration-500"
-                              style={{
-                                border: `1px solid ${sel ? 'var(--color-green)' : 'var(--color-ink)'}`,
-                                background: sel ? 'var(--color-green)' : 'transparent',
-                                color: sel ? 'var(--color-marble)' : 'var(--color-ink)',
-                                borderRadius: 2,
-                              }}
+                              className={`text-left px-3.5 py-2 min-h-[48px] border transition-colors duration-500 ${sel ? 'bg-text text-bg border-text' : 'border-line-strong hover:border-text'}`}
+                              style={{ borderRadius: 1 }}
                             >
-                              <span className="block text-[14px] leading-tight">{p.plan_name.replace(/^\w+ - /, '')}</span>
+                              <span className="block text-[12.5px] leading-tight opacity-80">{p.plan_name.replace(/^\w+ - /, '')}</span>
                               <span className="block text-[14px] num">{inr(p.nightly_rate)} a night</span>
                             </button>
                           )
@@ -238,14 +247,14 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
             </ul>
           )}
           {rooms.some((r) => r.booked || r.over_capacity) && (
-            <p className="field-help m-0 mt-3">
-              Held and undersized rooms stay selectable on purpose: the database is the final word on every rule.
-            </p>
+            <p className="field-help m-0 mt-4">Held and undersized rooms stay selectable on purpose: the database is the final word on every rule.</p>
           )}
-        </fieldset>
+        </Reveal>
 
-        <fieldset className="border-0 p-0 m-0 min-w-0">
-          <legend className="sc text-[22px] text-claret mb-4 p-0">The guest</legend>
+        <Reveal as="fieldset" className="border-0 p-0 m-0 min-w-0" delay={0.1}>
+          <legend className="p-0 w-full">
+            <SectionTitle numeral="III">The guest</SectionTitle>
+          </legend>
           <Segmented
             label="Guest"
             value={mode}
@@ -258,7 +267,7 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
               { value: 'new', label: 'New guest' },
             ]}
           />
-          <div className="mt-5">
+          <div className="mt-6">
             {mode === 'existing' ? (
               <SelectInput label="Guest on file" value={guestId} onChange={(e) => setGuestId(e.target.value)}>
                 <option value="">Choose a guest</option>
@@ -269,30 +278,25 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
                 ))}
               </SelectInput>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-5">
+              <div className="grid sm:grid-cols-2 gap-6">
                 <TextInput className="sm:col-span-2" label="Full name" value={ng.full_name} onChange={(e) => setNg({ ...ng, full_name: e.target.value })} autoComplete="off" />
                 <TextInput label="Email" type="email" value={ng.email} onChange={(e) => setNg({ ...ng, email: e.target.value })} autoComplete="off" />
                 <TextInput label="Phone" type="tel" value={ng.phone} onChange={(e) => setNg({ ...ng, phone: e.target.value })} autoComplete="off" help="Optional" />
               </div>
             )}
           </div>
-        </fieldset>
+        </Reveal>
       </div>
 
-      <aside
-        className={`double-rule bg-vellum p-7 ${compact ? '' : 'xl:sticky xl:top-8'}`}
-        aria-label="Booking estimate"
-      >
-        <div className="relative grid gap-5">
-          <h3 className="sc m-0 text-[22px] text-claret">Booking slip</h3>
-          <div className="grid gap-1 text-[17px]">
-            <p className="m-0">{room ? `Room ${room.room_number}, ${room.type_name}` : 'No room chosen yet'}</p>
-            <p className="m-0 text-muted">
-              {datesOk && nights > 0 ? `${dayLabel(ci)} to ${dayLabel(co)}` : 'Check the dates'}
-            </p>
+      <aside className={`double-rule bg-surface p-8 ${compact ? '' : 'xl:sticky xl:top-10'}`} aria-label="Booking estimate">
+        <div className="relative grid gap-6">
+          <p className="display m-0 text-[30px] text-strong">Booking slip</p>
+          <div className="grid gap-1 text-[15px]">
+            <p className="m-0 text-strong">{room ? `Room ${room.room_number}, ${room.type_name}` : 'No room chosen yet'}</p>
+            <p className="m-0 text-muted">{datesOk && nights > 0 ? `${dayLabel(ci)} to ${dayLabel(co)}` : 'Check the dates'}</p>
             <p className="m-0 text-muted">{plural(adults + children, 'guest')}</p>
           </div>
-          <div className="grid gap-2 rule-t pt-4 text-[17px]">
+          <div className="grid gap-2.5 border-t border-line pt-5 text-[14.5px]">
             <div className="flex justify-between gap-4">
               <span>{plan ? `${plural(nights, 'night')} at ${inr(plan.nightly_rate)}` : 'Room charge'}</span>
               <span className="num">{inr(estimate)}</span>
@@ -302,21 +306,19 @@ export default function BookingForm({ initial = {}, lockRoom = false, onBooked, 
               <span className="num">{inr(tax)}</span>
             </div>
           </div>
-          <div className="rule-t pt-4">
-            <p className="m-0 font-ui text-[14px] text-muted">Estimated total</p>
-            <p className="m-0 font-display text-[40px] font-medium text-claret num leading-tight whitespace-nowrap">
-              <CountUp value={estimate + tax} decimals={2} format={(v) => inr(v)} duration={0.7} />
+          <div className="border-t border-line pt-5">
+            <p className="m-0 text-[13px] text-muted">Estimated total</p>
+            <p className="display m-0 mt-2 text-[44px] leading-none text-strong whitespace-nowrap">
+              <Odometer value={estimate + tax} format={(v) => inr(v)} />
             </p>
-            <p className="m-0 mt-1 text-[15px] italic text-muted">Billed at check-out, together with any services.</p>
+            <p className="m-0 mt-3 text-[13px] text-muted">Billed at check-out, together with any services.</p>
           </div>
           <AnimatePresence initial={false}>{error && <RuleError error={error} />}</AnimatePresence>
-          <button type="submit" className="btn btn-primary w-full" disabled={!canSubmit}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={!canSubmit}>
             {busy ? 'Entering it in the register' : 'Confirm booking'}
           </button>
           {!canSubmit && !busy && (
-            <p className="field-help m-0 -mt-2">
-              {!roomId ? 'Choose a room and a rate to continue.' : !guestReady ? 'Add the guest to continue.' : ''}
-            </p>
+            <p className="field-help m-0 -mt-3">{!roomId ? 'Choose a room and a rate to continue.' : !guestReady ? 'Add the guest to continue.' : ''}</p>
           )}
         </div>
       </aside>

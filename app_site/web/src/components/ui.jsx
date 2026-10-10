@@ -1,25 +1,71 @@
 import { useId } from 'react'
-import { motion } from 'motion/react'
-import { EASE } from '../motion'
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
+import { Minus, Plus, WarningDiamond } from '@phosphor-icons/react'
+import { EASE, introDelay } from '../motion'
 import { STATUS } from './KeyFob'
+import { Display, Rule } from './motion'
 
-export function PageHeader({ title, subtitle, children }) {
+/** Page header: the title rises line by line, then drifts slower than the page as you scroll. */
+export function PageHeader({ title, subtitle, children, micro, figure }) {
+  const reduce = useReducedMotion()
+  const { scrollY } = useScroll()
+  const y = useTransform(scrollY, [0, 520], [0, 72])
+  const opacity = useTransform(scrollY, [0, 420], [1, 0.3])
+  const d = introDelay()
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5 pb-7 mb-9 rule-b">
-      <div className="min-w-0">
-        <h1 className="font-display text-[34px] sm:text-[44px] font-medium text-claret m-0">{title}</h1>
-        {subtitle && <p className="m-0 mt-3 text-[18px] italic text-muted max-w-[72ch]">{subtitle}</p>}
-      </div>
-      {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
+    <header className="relative mb-12 sm:mb-16">
+      <motion.div style={reduce ? undefined : { y, opacity }} className="flex flex-wrap items-end justify-between gap-x-10 gap-y-7 pb-9">
+        <div className="min-w-0 max-w-[860px]">
+          {micro && (
+            <motion.p
+              className="micro m-0 mb-5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.9, ease: EASE, delay: d + 0.05 }}
+            >
+              {micro}
+            </motion.p>
+          )}
+          <Display text={title} className="m-0 text-[42px] sm:text-[56px] lg:text-[64px] text-strong" />
+          {subtitle && (
+            <motion.p
+              className="lede m-0 mt-5"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, ease: EASE, delay: d + 0.35 }}
+            >
+              {subtitle}
+            </motion.p>
+          )}
+        </div>
+        {children && (
+          <motion.div
+            className="flex flex-wrap items-center gap-3"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, ease: EASE, delay: d + 0.45 }}
+          >
+            {children}
+          </motion.div>
+        )}
+        {figure}
+      </motion.div>
+      <Rule />
     </header>
   )
 }
 
-export function SectionTitle({ children, aside, id }) {
+/** Section title in Bodoni. A Roman numeral only where the content is a real sequence. */
+export function SectionTitle({ children, numeral, aside, id, className = '' }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 mb-4">
-      <h2 id={id} className="sc m-0 text-[22px] text-claret">
-        {children}
+    <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-2 mb-6 ${className}`}>
+      <h2 id={id} className="display m-0 text-[30px] sm:text-[32px] text-strong flex items-baseline gap-4">
+        {numeral && (
+          <span className="italic text-accent text-[30px]" aria-hidden="true">
+            {numeral}.
+          </span>
+        )}
+        <span>{children}</span>
       </h2>
       {aside}
     </div>
@@ -66,46 +112,42 @@ export function Stepper({ label, value, onChange, min = 0, max = 12 }) {
       <span className="field-label" id={id}>
         {label}
       </span>
-      <div
-        role="group"
-        aria-labelledby={id}
-        className="inline-flex items-stretch border border-ink/60 bg-vellum/60"
-        style={{ borderRadius: 2 }}
-      >
+      <div role="group" aria-labelledby={id} className="inline-flex items-stretch border border-line-strong" style={{ borderRadius: 1 }}>
         <button
           type="button"
-          className="w-11 min-h-[44px] font-ui text-[20px] hover:bg-vellum disabled:opacity-40"
+          className="w-12 min-h-[48px] grid place-items-center hover:bg-surface-2 transition-colors duration-500 disabled:opacity-35"
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
           aria-label={`Fewer ${label.toLowerCase()}`}
         >
-          -
+          <Minus size={16} weight="light" />
         </button>
-        <span className="w-12 grid place-items-center text-[19px] num" aria-live="polite">
+        <span className="w-12 grid place-items-center text-[17px] num border-x border-line" aria-live="polite">
           {value}
         </span>
         <button
           type="button"
-          className="w-11 min-h-[44px] font-ui text-[20px] hover:bg-vellum disabled:opacity-40"
+          className="w-12 min-h-[48px] grid place-items-center hover:bg-surface-2 transition-colors duration-500 disabled:opacity-35"
           onClick={() => onChange(Math.min(max, value + 1))}
           disabled={value >= max}
           aria-label={`More ${label.toLowerCase()}`}
         >
-          +
+          <Plus size={16} weight="light" />
         </button>
       </div>
     </div>
   )
 }
 
-export function Segmented({ label, options, value, onChange, name }) {
+/** Radio group with a silver bar that slides to the chosen option. */
+export function Segmented({ label, options, value, onChange, name, hideLabel = false }) {
   const gid = useId()
   return (
     <div role="radiogroup" aria-labelledby={gid}>
-      <span className="field-label" id={gid}>
+      <span className={hideLabel ? 'sr-only' : 'field-label'} id={gid}>
         {label}
       </span>
-      <div className="inline-flex flex-wrap border border-ink/60" style={{ borderRadius: 2 }}>
+      <div className="inline-flex flex-wrap border border-line-strong" style={{ borderRadius: 1 }}>
         {options.map((o) => {
           const on = value === o.value
           return (
@@ -116,11 +158,17 @@ export function Segmented({ label, options, value, onChange, name }) {
               aria-checked={on}
               name={name}
               onClick={() => onChange(o.value)}
-              className={`font-ui text-[15px] px-4 min-h-[44px] transition-colors duration-500 ${
-                on ? 'bg-green text-marble' : 'hover:bg-vellum'
-              }`}
+              className={`relative px-4 min-h-[44px] text-[14px] tracking-[0.02em] transition-colors duration-500 ${on ? 'text-bg' : 'text-text hover:bg-surface-2'}`}
             >
-              {o.label}
+              {on && (
+                <motion.span
+                  layoutId={`seg-${gid}`}
+                  className="absolute inset-0 bg-text"
+                  transition={{ duration: 0.6, ease: EASE }}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="relative">{o.label}</span>
             </button>
           )
         })}
@@ -129,53 +177,47 @@ export function Segmented({ label, options, value, onChange, name }) {
   )
 }
 
+/** Room status in running text: the same miniature form as the fob, plus the word. */
 export function StatusTag({ status }) {
-  const meta = STATUS[status]
-  const color =
-    status === 'maintenance' ? 'var(--color-muted)' : status === 'occupied' ? 'var(--color-ink)' : meta?.color
-  const dot = meta?.color
   return (
-    <span className="tag" style={{ color }}>
-      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 9, background: dot, display: 'inline-block' }} />
-      {meta?.label || status}
+    <span className="tag">
+      <span className={`swatch swatch--${status}`} aria-hidden="true" style={{ transform: 'scale(0.85)' }} />
+      {STATUS[status]?.label || status}
     </span>
   )
 }
 
-const RES_TONE = {
-  booked: ['Booked', 'var(--color-green)'],
-  checked_in: ['In house', 'var(--color-ink)'],
-  completed: ['Completed', 'var(--color-muted)'],
-  cancelled: ['Cancelled', 'var(--color-claret-light)'],
-  no_show: ['No show', 'var(--color-claret-light)'],
-  open: ['Open', 'var(--color-claret-light)'],
-  partially_paid: ['Part paid', 'var(--color-ink)'],
-  paid: ['Paid', 'var(--color-st-available)'],
-  pending: ['To do', 'var(--color-muted)'],
-  in_progress: ['In progress', 'var(--color-st-cleaning)'],
-  done: ['Done', 'var(--color-st-available)'],
-  requested: ['Requested', 'var(--color-ink)'],
-  fulfilled: ['Fulfilled', 'var(--color-st-available)'],
+// Reservation, invoice and task states, told apart by outline, fill and dash rather than colour.
+const STATES = {
+  booked: ['Booked', ''],
+  checked_in: ['In house', 'tag--solid'],
+  completed: ['Completed', 'tag--quiet'],
+  cancelled: ['Cancelled', 'tag--error'],
+  no_show: ['No show', 'tag--error tag--dashed'],
+  open: ['Open', 'tag--dashed'],
+  partially_paid: ['Part paid', ''],
+  paid: ['Paid', 'tag--solid'],
+  pending: ['To do', 'tag--dashed'],
+  in_progress: ['In progress', ''],
+  done: ['Done', 'tag--solid'],
+  requested: ['Requested', 'tag--dashed'],
+  fulfilled: ['Fulfilled', 'tag--solid'],
 }
 
 export function PillTag({ status }) {
-  const [label, color] = RES_TONE[status] || [status, 'var(--color-muted)']
-  return (
-    <span className="tag" style={{ color }}>
-      {label}
-    </span>
-  )
+  const [label, cls] = STATES[status] || [status, 'tag--quiet']
+  return <span className={`tag ${cls}`}>{label}</span>
 }
 
 export function Skeleton({ className = '', style }) {
   return <div className={`sk ${className}`} style={style} aria-hidden="true" />
 }
 
-export function SkeletonRows({ rows = 4, height = 54 }) {
+export function SkeletonRows({ rows = 4, height = 56 }) {
   return (
     <div className="grid gap-3" role="status" aria-label="Loading">
       {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} style={{ height, opacity: 1 - i * 0.12 }} />
+        <Skeleton key={i} style={{ height, opacity: 1 - i * 0.13 }} />
       ))}
     </div>
   )
@@ -184,14 +226,14 @@ export function SkeletonRows({ rows = 4, height = 54 }) {
 export function EmptyState({ title, children, action }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, ease: EASE }}
-      className="double-rule py-12 px-6 text-center"
+      transition={{ duration: 0.9, ease: EASE }}
+      className="double-rule px-6 py-14 text-center"
     >
-      <p className="font-display text-[30px] text-claret m-0">{title}</p>
-      <p className="mx-auto mt-3 mb-0 max-w-[46ch] text-muted italic text-[18px]">{children}</p>
-      {action && <div className="mt-6 flex justify-center">{action}</div>}
+      <p className="display m-0 text-[32px] text-strong">{title}</p>
+      <p className="mx-auto mt-4 mb-0 max-w-[46ch] text-muted text-[16px]">{children}</p>
+      {action && <div className="mt-8 flex justify-center">{action}</div>}
     </motion.div>
   )
 }
@@ -199,14 +241,17 @@ export function EmptyState({ title, children, action }) {
 export function ErrorNote({ error, onRetry }) {
   if (!error) return null
   return (
-    <div role="alert" className="border-l-2 border-claret-light pl-4 py-2 my-4">
-      <p className="m-0 font-ui text-[15px] font-medium text-claret-light">That did not load</p>
-      <p className="m-0 text-[16px]">{error.message}</p>
-      {onRetry && (
-        <button className="btn btn-quiet btn-sm mt-2 -ml-3" onClick={onRetry}>
-          Try again
-        </button>
-      )}
+    <div role="alert" className="flex gap-4 items-start border-l-2 border-error pl-5 py-3 my-5">
+      <WarningDiamond size={22} weight="light" className="text-error mt-0.5 shrink-0" />
+      <div>
+        <p className="m-0 text-[14px] font-medium text-error-text">That did not load</p>
+        <p className="m-0 text-[15px] text-text">{error.message}</p>
+        {onRetry && (
+          <button className="btn btn-quiet btn-sm mt-2 -ml-3" onClick={onRetry}>
+            Try again
+          </button>
+        )}
+      </div>
     </div>
   )
 }

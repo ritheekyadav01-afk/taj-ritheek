@@ -12,7 +12,7 @@ const Router = DEMO ? HashRouter : BrowserRouter
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="user" transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.7 }}>
       <AppProvider>
         <Router>
           <App />

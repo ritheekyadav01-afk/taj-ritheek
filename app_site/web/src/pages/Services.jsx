@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { PageHeader, SectionTitle, SelectInput, TextInput, Segmented, SkeletonRows, EmptyState, ErrorNote, PillTag } from '../components/ui'
 import KeyFob from '../components/KeyFob'
 import RuleError from '../components/RuleError'
+import { Reveal, Rule } from '../components/motion'
 import { useApi } from '../hooks'
 import { post } from '../api'
 import { useData, useToast } from '../store'
@@ -78,10 +79,10 @@ export default function Services() {
 
   return (
     <>
-      <PageHeader title="Guest services" subtitle="Log what a guest has asked for and, if there is a fee, put it on the room account in the same step." />
+      <PageHeader title="Guest *services*" subtitle="Log what a guest has asked for and, if there is a fee, put it on the room account in the same step." />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)] gap-x-16 gap-y-14 items-start">
-        <section aria-labelledby="new-req">
+      <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,480px)_minmax(0,1fr)] gap-x-20 gap-y-16 items-start">
+        <Reveal as="section" aria-labelledby="new-req">
           <SectionTitle id="new-req">New request</SectionTitle>
           {stays.error && !stays.data && <ErrorNote error={stays.error} />}
           {!stays.data ? (
@@ -91,7 +92,7 @@ export default function Services() {
               Requests belong to a stay. Check a guest in first and they will appear here.
             </EmptyState>
           ) : (
-            <form onSubmit={submit} className="grid gap-6" noValidate>
+            <form onSubmit={submit} className="grid gap-7" noValidate>
               <SelectInput label="Guest and room" value={stayId} onChange={(e) => setStayId(e.target.value)}>
                 {stays.data.map((s) => (
                   <option key={s.stay_id} value={s.stay_id}>
@@ -103,23 +104,21 @@ export default function Services() {
               <div>
                 <span className="field-label">Common requests</span>
                 <div className="flex flex-wrap gap-2">
-                  {CATALOG.map((c) => (
-                    <button
-                      key={c.name}
-                      type="button"
-                      onClick={() => pick(c)}
-                      aria-pressed={name === c.name}
-                      className="font-ui text-[14px] px-3 min-h-[40px] transition-colors duration-500"
-                      style={{
-                        border: '1px solid var(--color-ink)',
-                        borderRadius: 2,
-                        background: name === c.name ? 'var(--color-green)' : 'transparent',
-                        color: name === c.name ? 'var(--color-marble)' : 'var(--color-ink)',
-                      }}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
+                  {CATALOG.map((c) => {
+                    const on = name === c.name
+                    return (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => pick(c)}
+                        aria-pressed={on}
+                        className={`text-[13.5px] px-3.5 min-h-[40px] border transition-colors duration-500 ${on ? 'bg-text text-bg border-text' : 'border-line-strong hover:border-text'}`}
+                        style={{ borderRadius: 1 }}
+                      >
+                        {c.name}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -135,65 +134,90 @@ export default function Services() {
                 ]}
               />
 
-              {charge === 'room' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: EASE }}
-                  className="grid sm:grid-cols-[170px_1fr] gap-5"
-                >
-                  <TextInput label="Amount in rupees" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-                  <TextInput label="Line on the bill" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={name || 'Same as the request'} />
-                </motion.div>
-              )}
+              <AnimatePresence initial={false}>
+                {charge === 'room' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.6, ease: EASE }}
+                    className="grid sm:grid-cols-[180px_1fr] gap-6"
+                  >
+                    <TextInput label="Amount in rupees" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+                    <TextInput label="Line on the bill" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={name || 'Same as the request'} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <RuleError error={error} />
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-5">
                 <button type="submit" className="btn btn-primary" disabled={!ready || busy}>
                   {busy ? 'Writing it up' : charge === 'room' ? 'Log and charge' : 'Log the request'}
                 </button>
-                {chosen && <span className="text-[16px] italic text-muted">Goes to {chosen.guest}, room {chosen.room}.</span>}
+                {chosen && (
+                  <span className="text-[13.5px] text-muted">
+                    Goes to {chosen.guest}, room {chosen.room}.
+                  </span>
+                )}
               </div>
             </form>
           )}
-        </section>
+        </Reveal>
 
-        <section aria-labelledby="req-log">
+        <Reveal as="section" aria-labelledby="req-log" delay={0.08}>
           <SectionTitle id="req-log">The request log</SectionTitle>
+          <Rule strong />
           {log.error && !log.data && <ErrorNote error={log.error} />}
           {!log.data ? (
-            <SkeletonRows rows={5} height={52} />
+            <div className="mt-4">
+              <SkeletonRows rows={5} height={56} />
+            </div>
           ) : log.data.length === 0 ? (
-            <EmptyState title="Nothing logged yet">Requests and room charges you record will be listed here, newest first.</EmptyState>
+            <div className="mt-6">
+              <EmptyState title="Nothing logged yet">Requests and room charges you record will be listed here, newest first.</EmptyState>
+            </div>
           ) : (
             <ul className="list-none m-0 p-0">
               {log.data.map((r, i) => (
                 <motion.li
                   key={r.id}
-                  initial={{ opacity: 0, y: 10, backgroundColor: r.id === fresh ? 'rgba(169,131,63,0.22)' : 'rgba(0,0,0,0)' }}
-                  animate={{ opacity: 1, y: 0, backgroundColor: 'rgba(0,0,0,0)' }}
-                  transition={{ duration: 0.9, ease: EASE, delay: Math.min(i, 8) * 0.04 }}
-                  className="flex items-center gap-4 py-4 px-2 rule-b"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: EASE, delay: Math.min(i, 8) * 0.05 }}
+                  className="relative flex items-center gap-5 py-5 border-b border-line"
                 >
+                  {r.id === fresh && (
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0"
+                      style={{ background: 'color-mix(in srgb, var(--accent) 16%, transparent)' }}
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 0 }}
+                      transition={{ duration: 1.6, ease: EASE, delay: 0.3 }}
+                    />
+                  )}
                   <KeyFob number={r.room} status="occupied" size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="m-0 text-[18px] truncate">{r.service}</p>
-                    <p className="m-0 text-[15px] text-muted truncate">
+                  <div className="relative min-w-0 flex-1">
+                    <p className="m-0 text-[16px] text-strong truncate">{r.service}</p>
+                    <p className="m-0 text-[13px] text-muted truncate">
                       {r.guest}, {stampLabel(r.requested)}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="m-0 text-[18px] num">{Number(r.charged) ? inr(r.charged) : 'No charge'}</p>
+                  <div className="relative text-right grid gap-1.5 justify-items-end">
+                    <p className="m-0 text-[15.5px] num">{Number(r.charged) ? inr(r.charged) : 'No charge'}</p>
                     <PillTag status={r.status} />
                   </div>
                 </motion.li>
               ))}
             </ul>
           )}
-          <p className="mt-6 text-[16px] text-muted">
-            Room charges join the guest's bill at check-out. <Link className="underline underline-offset-4 decoration-brass" to="/billing">Open billing</Link>
+          <p className="mt-7 text-[14px] text-muted">
+            Room charges join the guest's bill at check-out.{' '}
+            <Link className="text-text underline underline-offset-4 decoration-accent" to="/billing">
+              Open billing
+            </Link>
           </p>
-        </section>
+        </Reveal>
       </div>
     </>
   )

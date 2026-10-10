@@ -6,6 +6,7 @@ import { PageHeader, TextInput, SkeletonRows, EmptyState, ErrorNote, PillTag } f
 import Modal from '../components/Modal'
 import Confirm from '../components/Confirm'
 import RuleError from '../components/RuleError'
+import { Reveal } from '../components/motion'
 import { useApi, useDebounced } from '../hooks'
 import { del, post, put } from '../api'
 import { useData, useToast } from '../store'
@@ -19,41 +20,49 @@ function History({ guest, onClose }) {
   return (
     <Modal open={!!guest} onClose={onClose} variant="drawer" size="md" title={guest ? guest.full_name : ''}>
       {guest && (
-        <div className="grid gap-6">
-          <p className="m-0 text-[17px] text-muted">
+        <div className="grid gap-7">
+          <p className="m-0 text-[15px] text-muted">
             {guest.email}
             {guest.phone ? `, ${guest.phone}` : ''}
           </p>
-          <h3 className="sc m-0 text-[22px] text-claret">Stay history</h3>
+          <h3 className="display m-0 text-[28px] text-strong">Stay history</h3>
           {error && <ErrorNote error={error} />}
           {!data ? (
             <SkeletonRows rows={3} height={80} />
           ) : data.length === 0 ? (
-            <p className="m-0 italic text-muted text-[18px]">No stays yet. When this guest books, their history starts here.</p>
+            <p className="m-0 text-muted text-[15px]">No stays yet. When this guest books, their history starts here.</p>
           ) : (
-            <ol className="list-none m-0 p-0 relative" style={{ borderLeft: '1px solid var(--color-brass)', marginLeft: 6 }}>
+            <ol className="list-none m-0 p-0 relative ml-1.5">
+              <motion.span
+                aria-hidden="true"
+                className="absolute left-0 top-1 bottom-0 w-px bg-accent"
+                style={{ originY: 0 }}
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 1.4, ease: EASE }}
+              />
               {data.map((s, i) => (
                 <motion.li
                   key={s.reservation_id}
-                  initial={{ opacity: 0, x: -8 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, ease: EASE, delay: i * 0.07 }}
-                  className="relative pl-7 pb-7"
+                  transition={{ duration: 0.8, ease: EASE, delay: 0.2 + i * 0.08 }}
+                  className="relative pl-8 pb-8"
                 >
-                  <span aria-hidden="true" className="absolute -left-[5px] top-2 w-[9px] h-[9px] rounded-full bg-brass" />
+                  <span aria-hidden="true" className="absolute -left-[4.5px] top-2 w-[10px] h-[10px] rounded-full bg-bg border border-accent" />
                   <div className="flex items-center justify-between gap-3">
-                    <p className="m-0 text-[19px]">
+                    <p className="m-0 text-[16.5px] text-strong">
                       Room {s.room_number}, {s.room_type}
                     </p>
                     <PillTag status={s.status} />
                   </div>
-                  <p className="m-0 text-[16px] text-muted">
+                  <p className="m-0 text-[13.5px] text-muted">
                     {s.actual_check_in
                       ? `${dateLabel(s.actual_check_in)} to ${s.actual_check_out ? dateLabel(s.actual_check_out) : 'now'}`
                       : `${dayLabel(s.planned_check_in)} to ${dayLabel(s.planned_check_out)} (planned)`}
                   </p>
                   {(Number(s.invoice_total) > 0 || Number(s.service_spend) > 0) && (
-                    <p className="m-0 text-[16px] num">
+                    <p className="m-0 text-[14px] num">
                       Invoice {inr(s.invoice_total)}, services {inr(s.service_spend)}
                     </p>
                   )}
@@ -124,27 +133,34 @@ export default function Guests() {
 
   return (
     <>
-      <PageHeader title="Guests" subtitle="The guest book. Search it, keep it tidy, and open anyone's stay history.">
+      <PageHeader title="The guest *book*" subtitle="Search it, keep it tidy, and open anyone's stay history.">
         <button className="btn btn-primary" onClick={() => setForm({ ...BLANK })}>
           Add a guest
         </button>
       </PageHeader>
 
-      <div className="relative max-w-[520px] mb-8">
-        <TextInput label="Search by name, email or phone" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing" style={{ paddingLeft: 42 }} />
-        <MagnifyingGlass size={20} weight="light" className="absolute left-3 bottom-[13px] text-muted pointer-events-none" />
-      </div>
+      <Reveal className="relative max-w-[540px] mb-10">
+        <TextInput label="Search by name, email or phone" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing" style={{ paddingLeft: 44 }} />
+        <MagnifyingGlass size={18} weight="light" className="absolute left-4 bottom-[15px] text-muted pointer-events-none" />
+      </Reveal>
 
       {error && !data && <ErrorNote error={error} />}
       {!data ? (
-        <SkeletonRows rows={5} height={64} />
+        <SkeletonRows rows={5} height={66} />
       ) : data.length === 0 ? (
-        <EmptyState title={dq ? 'No guest by that name' : 'The guest book is empty'} action={<button className="btn btn-primary" onClick={() => setForm({ ...BLANK, full_name: dq })}>Add a guest</button>}>
+        <EmptyState
+          title={dq ? 'No guest by that name' : 'The guest book is empty'}
+          action={
+            <button className="btn btn-primary" onClick={() => setForm({ ...BLANK, full_name: dq })}>
+              Add a guest
+            </button>
+          }
+        >
           {dq ? 'Check the spelling, or add them as a new guest.' : 'Add the first guest and they will be listed here.'}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto thin-scroll">
-          <table className="w-full border-collapse min-w-[720px]">
+        <Reveal className="overflow-x-auto thin-scroll">
+          <table className="w-full border-collapse min-w-[740px]">
             <thead>
               <tr>
                 {['Guest', 'Email', 'Phone', 'Stays', ''].map((h) => (
@@ -158,37 +174,41 @@ export default function Guests() {
               {data.map((g, i) => (
                 <motion.tr
                   key={g.guest_id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.55, ease: EASE, delay: Math.min(i, 10) * 0.04 }}
+                  transition={{ duration: 0.75, ease: EASE, delay: Math.min(i, 10) * 0.05 }}
                 >
                   <td className="td">
                     <div className="flex items-center gap-4">
                       <span
                         aria-hidden="true"
-                        className="grid place-items-center shrink-0 font-ui text-[14px] font-medium text-brass-soft"
-                        style={{ width: 40, height: 40, borderRadius: 99, background: 'var(--color-green)', boxShadow: '0 0 0 1.5px var(--color-brass)' }}
+                        className="grid place-items-center shrink-0 text-[13px] font-medium tracking-[0.06em] text-text border border-accent"
+                        style={{ width: 42, height: 42, borderRadius: 999 }}
                       >
                         {initials(g.full_name)}
                       </span>
-                      <span className="text-[19px]">{g.full_name}</span>
+                      <span className="text-[16px] text-strong">{g.full_name}</span>
                     </div>
                   </td>
-                  <td className="td text-[16px]">{g.email}</td>
-                  <td className="td text-[16px] num">{g.phone || <span className="text-muted">Not given</span>}</td>
-                  <td className="td text-[16px]">{g.reservations ? plural(g.reservations, 'booking') : <span className="text-muted">None yet</span>}</td>
+                  <td className="td text-[14.5px]">{g.email}</td>
+                  <td className="td text-[14.5px] num">{g.phone || <span className="text-muted">Not given</span>}</td>
+                  <td className="td text-[14.5px]">{g.reservations ? plural(g.reservations, 'booking') : <span className="text-muted">None yet</span>}</td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
                       <button className="btn btn-quiet btn-sm" onClick={() => setHistory(g)} aria-label={`Stay history for ${g.full_name}`}>
-                        <ClockCounterClockwise size={19} weight="light" />
+                        <ClockCounterClockwise size={18} weight="light" />
                         <span className="hidden lg:inline">History</span>
                       </button>
-                      <button className="btn btn-quiet btn-sm" onClick={() => setForm({ id: g.guest_id, full_name: g.full_name, email: g.email, phone: g.phone || '' })} aria-label={`Edit ${g.full_name}`}>
-                        <PencilSimple size={19} weight="light" />
+                      <button
+                        className="btn btn-quiet btn-sm"
+                        onClick={() => setForm({ id: g.guest_id, full_name: g.full_name, email: g.email, phone: g.phone || '' })}
+                        aria-label={`Edit ${g.full_name}`}
+                      >
+                        <PencilSimple size={18} weight="light" />
                         <span className="hidden lg:inline">Edit</span>
                       </button>
                       <button className="btn btn-quiet btn-sm" onClick={() => setRemove(g)} aria-label={`Delete ${g.full_name}`}>
-                        <Trash size={19} weight="light" />
+                        <Trash size={18} weight="light" />
                         <span className="hidden lg:inline">Delete</span>
                       </button>
                     </div>
@@ -197,7 +217,7 @@ export default function Guests() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Reveal>
       )}
 
       <Modal
@@ -217,7 +237,7 @@ export default function Guests() {
         }
       >
         {form && (
-          <form onSubmit={save} className="grid gap-5" noValidate>
+          <form onSubmit={save} className="grid gap-6" noValidate>
             <TextInput label="Full name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value, error: null })} data-autofocus autoComplete="off" />
             <TextInput label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value, error: null })} autoComplete="off" />
             <TextInput label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} help="Optional" autoComplete="off" />
